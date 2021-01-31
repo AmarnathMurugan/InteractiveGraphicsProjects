@@ -32,3 +32,5 @@
 *.app
 
 Hello World/.vs/
+
+Hello World/bin/
