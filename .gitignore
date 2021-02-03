@@ -30,9 +30,8 @@
 *.out
 *.app
 
-Hello World/.vs/
 
 
-Hello World/bin/Intermediate/
-
-Hello World/bin/Win32/
+**/bin/Intermediate/
+**/bin/Win32/
+**/.vs/
