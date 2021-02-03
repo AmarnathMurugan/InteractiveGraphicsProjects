@@ -27,10 +27,12 @@
 *.lib
 
 # Executables
-*.exe
 *.out
 *.app
 
 Hello World/.vs/
 
-Hello World/bin/
+
+Hello World/bin/Intermediate/
+
+Hello World/bin/Win32/
