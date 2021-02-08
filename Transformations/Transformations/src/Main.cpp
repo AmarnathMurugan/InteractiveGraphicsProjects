@@ -8,18 +8,26 @@
 
 void inputCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
 void framebufferResizeCallback(GLFWwindow* window, int w, int h);
-//void GenerateVertexBuffer();
 GLuint CompileShaders();
 unsigned int width = 960, height = 540;
 
+const char* vertexShaderSource = "#version 330 core\n"
+"layout (location = 0) in vec3 aPos;\n"
+"void main()\n"
+"{\n"
+"   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
+"}\0";
+const char* fragmentShaderSource = "#version 330 core\n"
+"out vec4 FragColor;\n"
+"void main()\n"
+"{\n"
+"   FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n"
+"}\n\0";
+
+
 int main(int argc, char* argv[])
-{	
-	//Set Background Colors
-	srand(time(NULL));
-	Color prevColor = GetRandomColor();
-	Color currentColor = prevColor;
-	Color targetColor = GetRandomColor();
-	
+{
+		
 	//Init GLFW and Versions
 	if (!glfwInit())	
 		return -1;
@@ -56,42 +64,41 @@ int main(int argc, char* argv[])
 	}	
 	std::cout << "obj loading complete, V:("<< meshData.V(0).elem[0]<<","<< meshData.V(0).elem[1]<<","<< meshData.V(0).elem[2]<<")";
 	
-	GLuint program = CompileShaders();
-
-	
+	GLuint program = CompileShaders();	
+	glUseProgram(program);
 	float vertices[] = {
 		-0.5f, -0.5f, 0.0f, // left  
 		 0.5f, -0.5f, 0.0f, // right 
 		 0.0f,  0.5f, 0.0f  // top   
 	};
+	
 	unsigned int VBO,VAO;
 	glGenVertexArrays(1, &VAO);
 	glGenBuffers(1, &VBO);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(VBO, sizeof(vertices), vertices, GL_STATIC_DRAW);
-	//glBufferData(VBO, sizeof(cy::Vec3f)*meshData.NV(), &meshData.V(0), GL_STATIC_DRAW);	
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(float), (void*)0);	
-	glEnableVertexAttribArray(0);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindVertexArray(VAO);
 
-	// You can unbind the VAO afterwards so other VAO calls won't accidentally modify this VAO, but this rarely happens. Modifying other
-	// VAOs requires a call to glBindVertexArray anyways so we generally don't unbind VAOs (nor VBOs) when it's not directly necessary.
-	glBindVertexArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	//glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);	
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cy::Vec3f)*meshData.NV(), &meshData.V(0), GL_STATIC_DRAW);	
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(cy::Vec3f), (void*)0);
+	glEnableVertexAttribArray(0);	
 	
 	while (!glfwWindowShouldClose(window))
 	{	
-		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 		//Set next target
 	
 		glUseProgram(program);
 		glBindVertexArray(VAO);
-		glDrawArrays(GL_TRIANGLES, 0, 3);
+		glDrawArrays(GL_POINTS, 0, meshData.NV());
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
-
+	glDeleteVertexArrays(1, &VAO);
+	glDeleteBuffers(1, &VBO);
+	glDeleteProgram(program);
 	glfwTerminate();
 	return 0;
 }
@@ -123,15 +130,12 @@ GLuint CompileShaders()
 		std::cout << "Vert compilation failed";
 		return 0;
 	}
+	
 
 	fragShader = glCreateShader(GL_FRAGMENT_SHADER);
 	std::string fragStr = GetStringFromFile("src/frag.glsl");
 	const char* frag = fragStr.c_str();
-
 	glShaderSource(fragShader, 1, &frag, NULL);
-
-	
-
 	glCompileShader(fragShader);
 	glGetShaderiv(fragShader, GL_COMPILE_STATUS, &success);
 	if (!success)
