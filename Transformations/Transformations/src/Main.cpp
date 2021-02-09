@@ -213,15 +213,16 @@ void initMVP()
 {
 	orthoProjection = glm::ortho(-50.0f* (float)width / (float)height, 50.0f* (float)width / (float)height, -50.0f , 50.0f , 0.1f, 200.0f);
 	persProjection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, 0.1f, 500.0f);
-	view = glm::lookAt(Center + glm::vec3(0, 0, dist), Center, UpAxis);
+	view = glm::lookAt(glm::vec3(0, 0, dist), glm::vec3(0), UpAxis);
 	model = glm::mat4(1.0f);
+	model = glm::translate(model, -Center);
 	mvp = persProjection * view * model;
 }
 
 void updateMVP()
 {
 	persProjection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, 0.1f, 200.0f);
-	view = glm::lookAt(Center + glm::vec3(0, 0, dist), Center, UpAxis);
+	view = glm::lookAt(glm::vec3(0, 0, dist), glm::vec3(0), UpAxis);
 	if (!isPerspective)
 	{
 		orthoProjection = glm::ortho(-50.0f * (float)width / (float)height, 50.0f * (float)width / (float)height, -50.0f, 50.0f, 0.1f, 100.0f);
