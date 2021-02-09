@@ -19,7 +19,7 @@ unsigned int width = 960, height = 540;
 float yRot=0, xRot=0,dist=50;
 glm::mat4 persProjection, orthoProjection, model, view, mvp;
 glm::dvec2 prevMousePosL, prevMousePosR, curMousePosL, deltaMousePosL, curMousePosR;
-glm::vec3 UpAxis(0.0f, 1.0f, 0.0f), RightAxis(1.0f, 0.0f, 0.0f);
+glm::vec3 UpAxis(0.0f, 1.0f, 0.0f), RightAxis(1.0f, 0.0f, 0.0f), Center;
 bool isPerspective=true,isLeftMouseHeld = false, isRightMouseHeld = false, isRecompile=false;
 GLuint mvpLocation;
 GLuint program;
@@ -62,8 +62,13 @@ int main(int argc, char* argv[])
 		std::cout << "obj loading failed";
 		return -1;
 	}	
-	std::cout << "obj loading complete, V:("<< meshData.V(0).elem[0]<<","<< meshData.V(0).elem[1]<<","<< meshData.V(0).elem[2]<<")";
-	
+	std::cout << "obj loading complete";		
+	meshData.ComputeBoundingBox();
+	if (meshData.IsBoundBoxReady())
+	{		
+		cy::Vec3f center = (meshData.GetBoundMin() + meshData.GetBoundMax())/2.0f;
+		Center = glm::vec3 (center.x, center.y, center.z);	
+	}
 	//Set program
 	CompileShaders();	
 	glUseProgram(program);	
@@ -72,7 +77,6 @@ int main(int argc, char* argv[])
 	initMVP();	
 	mvpLocation = glGetUniformLocation(program, "MVP");
 	glUniformMatrix4fv(mvpLocation, 1, GL_FALSE, &mvp[0][0]);
-
 	//Set buffers
 	GLuint VBO,VAO;
 	glGenVertexArrays(1, &VAO);
@@ -90,15 +94,18 @@ int main(int argc, char* argv[])
 		glClear(GL_COLOR_BUFFER_BIT);
 
 		if (isRightMouseHeld || isLeftMouseHeld) mouseInputTransformations(window);
+
 		if (isRecompile)
 		{
 			glDeleteProgram(program);
 			CompileShaders();
+			glUseProgram(program);
 			mvpLocation = glGetUniformLocation(program, "MVP");
 			glUniformMatrix4fv(mvpLocation, 1, GL_FALSE, &mvp[0][0]);
 			isRecompile = false;			
 		}
-		glUseProgram(program);
+		else
+			glUseProgram(program);
 		glBindVertexArray(VAO);
 		glDrawArrays(GL_POINTS, 0, meshData.NV());
 
@@ -152,6 +159,9 @@ void mouseInputCallback(GLFWwindow* window, int key, int action, int mods)
 void framebufferResizeCallback(GLFWwindow* window, int w, int h)
 {
 	glViewport(0, 0, w, h);
+	width = w;
+	height = h;
+	updateMVP();
 }
 
 void CompileShaders()
@@ -201,21 +211,28 @@ void CompileShaders()
 
 void initMVP()
 {
-	float scale = 1 / dist;
-	orthoProjection = glm::ortho(-50.0f, 50.0f , -50.0f , 50.0f , 0.1f, 100.0f);
+	orthoProjection = glm::ortho(-50.0f* (float)width / (float)height, 50.0f* (float)width / (float)height, -50.0f , 50.0f , 0.1f, 200.0f);
 	persProjection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, 0.1f, 500.0f);
-	view = glm::lookAt(glm::vec3(0, 0, dist), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
-	model = glm::mat4(1.0f);	
+	view = glm::lookAt(Center + glm::vec3(0, 0, dist), Center, UpAxis);
+	model = glm::mat4(1.0f);
 	mvp = persProjection * view * model;
 }
 
 void updateMVP()
 {
-	view = glm::lookAt(glm::vec3(0, 0, dist), glm::vec3(0, 0, 0), UpAxis);
+	persProjection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, 0.1f, 200.0f);
+	view = glm::lookAt(Center + glm::vec3(0, 0, dist), Center, UpAxis);
 	if (!isPerspective)
-		mvp = orthoProjection * view * model;	
+	{
+		orthoProjection = glm::ortho(-50.0f * (float)width / (float)height, 50.0f * (float)width / (float)height, -50.0f, 50.0f, 0.1f, 100.0f);
+		glm::scale(model, glm::vec3(1.0f/dist));
+		mvp = orthoProjection * view * model;
+	}
 	else
+	{
+		glm::scale(model, glm::vec3(1.0f));
 		mvp = persProjection * view * model;
+	}
 	glUniformMatrix4fv(mvpLocation, 1, GL_FALSE, &mvp[0][0]);
 }
 
