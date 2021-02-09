@@ -2,28 +2,27 @@
 #include<glad/glad.h>
 #include<GLFW/glfw3.h>
 #include<cy/cyTriMesh.h>
-#include<stdlib.h>
-#include<time.h>
+#include<glm/glm.hpp>
+#include<glm/gtc/matrix_transform.hpp>
 #include "headers/cutils.h"
 
 void inputCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
+void mouseInputCallback(GLFWwindow* window, int key, int action, int mods);
 void framebufferResizeCallback(GLFWwindow* window, int w, int h);
-GLuint CompileShaders();
+void initMVP();
+void updateMVP();
+void CompileShaders();
+
+void mouseInputTransformations(GLFWwindow* window);
+
 unsigned int width = 960, height = 540;
-
-const char* vertexShaderSource = "#version 330 core\n"
-"layout (location = 0) in vec3 aPos;\n"
-"void main()\n"
-"{\n"
-"   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
-"}\0";
-const char* fragmentShaderSource = "#version 330 core\n"
-"out vec4 FragColor;\n"
-"void main()\n"
-"{\n"
-"   FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n"
-"}\n\0";
-
+float yRot=0, xRot=0,dist=50;
+glm::mat4 persProjection, orthoProjection, model, view, mvp;
+glm::dvec2 prevMousePosL, prevMousePosR, curMousePosL, deltaMousePosL, curMousePosR;
+glm::vec3 UpAxis(0.0f, 1.0f, 0.0f), RightAxis(1.0f, 0.0f, 0.0f);
+bool isPerspective=true,isLeftMouseHeld = false, isRightMouseHeld = false, isRecompile=false;
+GLuint mvpLocation;
+GLuint program;
 
 int main(int argc, char* argv[])
 {
@@ -34,7 +33,7 @@ int main(int argc, char* argv[])
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
+	
 	//Create window
 	GLFWwindow* window = glfwCreateWindow(width, height, "New Window", NULL, NULL);
 	if (window == NULL)
@@ -53,6 +52,7 @@ int main(int argc, char* argv[])
 
 	//Set Callbacks
 	glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
+	glfwSetMouseButtonCallback(window, mouseInputCallback);
 	glfwSetKeyCallback(window, inputCallback);	
 
 	//Load model
@@ -64,21 +64,22 @@ int main(int argc, char* argv[])
 	}	
 	std::cout << "obj loading complete, V:("<< meshData.V(0).elem[0]<<","<< meshData.V(0).elem[1]<<","<< meshData.V(0).elem[2]<<")";
 	
-	GLuint program = CompileShaders();	
-	glUseProgram(program);
-	float vertices[] = {
-		-0.5f, -0.5f, 0.0f, // left  
-		 0.5f, -0.5f, 0.0f, // right 
-		 0.0f,  0.5f, 0.0f  // top   
-	};
-	
-	unsigned int VBO,VAO;
+	//Set program
+	CompileShaders();	
+	glUseProgram(program);	
+
+	//Set MVP matrix
+	initMVP();	
+	mvpLocation = glGetUniformLocation(program, "MVP");
+	glUniformMatrix4fv(mvpLocation, 1, GL_FALSE, &mvp[0][0]);
+
+	//Set buffers
+	GLuint VBO,VAO;
 	glGenVertexArrays(1, &VAO);
 	glGenBuffers(1, &VBO);
 	glBindVertexArray(VAO);
 
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	//glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);	
 	glBufferData(GL_ARRAY_BUFFER, sizeof(cy::Vec3f)*meshData.NV(), &meshData.V(0), GL_STATIC_DRAW);	
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(cy::Vec3f), (void*)0);
 	glEnableVertexAttribArray(0);	
@@ -87,8 +88,16 @@ int main(int argc, char* argv[])
 	{	
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
-		//Set next target
-	
+
+		if (isRightMouseHeld || isLeftMouseHeld) mouseInputTransformations(window);
+		if (isRecompile)
+		{
+			glDeleteProgram(program);
+			CompileShaders();
+			mvpLocation = glGetUniformLocation(program, "MVP");
+			glUniformMatrix4fv(mvpLocation, 1, GL_FALSE, &mvp[0][0]);
+			isRecompile = false;			
+		}
 		glUseProgram(program);
 		glBindVertexArray(VAO);
 		glDrawArrays(GL_POINTS, 0, meshData.NV());
@@ -107,6 +116,37 @@ void inputCallback(GLFWwindow* window, int key, int scancode, int action, int mo
 {
 	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, GLFW_TRUE);	
+	if(key==GLFW_KEY_P && action == GLFW_PRESS)
+	{
+		isPerspective = !isPerspective;
+		updateMVP();
+	}
+	if (key == GLFW_KEY_F6 && action == GLFW_PRESS)
+		isRecompile = true;
+}
+
+void mouseInputCallback(GLFWwindow* window, int key, int action, int mods)
+{
+	if (key == GLFW_MOUSE_BUTTON_LEFT)
+	{
+		if (action == GLFW_PRESS)
+		{
+			isLeftMouseHeld = true;
+			glfwGetCursorPos(window, &prevMousePosL.x, &prevMousePosL.y);
+		}
+		else if (action == GLFW_RELEASE)
+			isLeftMouseHeld = false;
+	}
+	if (key == GLFW_MOUSE_BUTTON_RIGHT)
+	{
+		if (action == GLFW_PRESS)
+		{
+			glfwGetCursorPos(window, &prevMousePosR.x, &prevMousePosR.y);
+			isRightMouseHeld = true;
+		}
+		else if (action == GLFW_RELEASE)
+			isRightMouseHeld = false;
+	}
 }
 
 void framebufferResizeCallback(GLFWwindow* window, int w, int h)
@@ -114,7 +154,7 @@ void framebufferResizeCallback(GLFWwindow* window, int w, int h)
 	glViewport(0, 0, w, h);
 }
 
-GLuint CompileShaders()
+void CompileShaders()
 {
 	GLuint vertShader, fragShader;
 	vertShader = glCreateShader(GL_VERTEX_SHADER);
@@ -128,7 +168,7 @@ GLuint CompileShaders()
 	if (!success)
 	{
 		std::cout << "Vert compilation failed";
-		return 0;
+		return;
 	}
 	
 
@@ -141,10 +181,9 @@ GLuint CompileShaders()
 	if (!success)
 	{
 		std::cout << "Frag compilation failed";
-		return 0;
+		return;
 	}
 	
-	GLuint program;
 	program = glCreateProgram();
 	glAttachShader(program, vertShader);
 	glAttachShader(program, fragShader);
@@ -153,9 +192,51 @@ GLuint CompileShaders()
 	if (!success)
 	{
 		std::cout << "Link failed";
-		return 0;
+		return;
 	}
+	std::cout << "Shader Compilation Complete \n";
 	glDeleteShader(vertShader);
 	glDeleteShader(fragShader);
-	return program;
+}
+
+void initMVP()
+{
+	float scale = 1 / dist;
+	orthoProjection = glm::ortho(-50.0f, 50.0f , -50.0f , 50.0f , 0.1f, 100.0f);
+	persProjection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, 0.1f, 500.0f);
+	view = glm::lookAt(glm::vec3(0, 0, dist), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+	model = glm::mat4(1.0f);	
+	mvp = persProjection * view * model;
+}
+
+void updateMVP()
+{
+	view = glm::lookAt(glm::vec3(0, 0, dist), glm::vec3(0, 0, 0), UpAxis);
+	if (!isPerspective)
+		mvp = orthoProjection * view * model;	
+	else
+		mvp = persProjection * view * model;
+	glUniformMatrix4fv(mvpLocation, 1, GL_FALSE, &mvp[0][0]);
+}
+
+void mouseInputTransformations(GLFWwindow* window)
+{
+	double delta = 0;
+	if (isRightMouseHeld)
+	{
+		glfwGetCursorPos(window, &curMousePosR.x, &curMousePosR.y);
+		delta = curMousePosR.y - prevMousePosR.y;
+		dist += delta;		
+		dist = dist < 0 ? 0 : dist;
+		glfwGetCursorPos(window, &prevMousePosR.x, &prevMousePosR.y);
+	}
+	if (isLeftMouseHeld)
+	{
+		glfwGetCursorPos(window, &curMousePosL.x, &curMousePosL.y);
+		deltaMousePosL = curMousePosL - prevMousePosL;
+		model = glm::rotate(model,(float)deltaMousePosL.x*0.01f, glm::vec3(0.0f,0.0f,1.0f));
+		model = glm::rotate(model, (float)deltaMousePosL.y*0.01f, RightAxis);
+		glfwGetCursorPos(window, &prevMousePosL.x, &prevMousePosL.y);
+	}
+	updateMVP();
 }
