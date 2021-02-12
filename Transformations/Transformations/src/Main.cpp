@@ -181,7 +181,6 @@ void CompileShaders()
 	//Read Vert Shader file and compile
 	std::string vertStr = GetStringFromFile("src/vert.glsl");
 	const char* vert = vertStr.c_str();
-
 	vertShader = glCreateShader(GL_VERTEX_SHADER);
 	glShaderSource(vertShader, 1, &vert, NULL);
 	glCompileShader(vertShader);
@@ -192,7 +191,7 @@ void CompileShaders()
 		std::cout << "Vert compilation failed";
 		return;
 	}
-	
+
 	//Read Frag Shader file and compile
 	std::string fragStr = GetStringFromFile("src/frag.glsl");
 	const char* frag = fragStr.c_str();
@@ -212,10 +211,11 @@ void CompileShaders()
 	glAttachShader(program, fragShader);
 	glLinkProgram(program);
 	glGetProgramiv(program, GL_LINK_STATUS, &success);
-	if (!success)
-	{
-		std::cout << "Link failed";
-		return;
+	glGetProgramiv(program, GL_LINK_STATUS, &success);
+	char infoLog[512];
+	if (!success) {
+		glGetProgramInfoLog(program, 512, NULL, infoLog);
+		std::cout << "Linking Failed:" << infoLog << std::endl;
 	}
 	std::cout << "Shader Compilation Complete \n";
 	glDeleteShader(vertShader);

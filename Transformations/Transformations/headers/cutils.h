@@ -41,7 +41,7 @@ std::string GetStringFromFile(const char* name)
 {
 	std::ifstream f(name);
 	if (!f.is_open())			
-		return "";
+		return "file not found";
 	
 	std::string content;
 	std::string str="";
