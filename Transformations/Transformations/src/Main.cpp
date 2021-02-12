@@ -16,7 +16,7 @@ void CompileShaders();
 void mouseInputTransformations(GLFWwindow* window);
 
 unsigned int width = 960, height = 540;
-float yRot=0, xRot=0,dist=50;
+float yRot=0, xRot=0,dist=50,yOffset=0;
 glm::mat4 persProjection, orthoProjection, model, view, mvp;
 glm::dvec2 prevMousePosL, prevMousePosR, curMousePosL, deltaMousePosL, curMousePosR;
 glm::vec3 UpAxis(0.0f, 1.0f, 0.0f), RightAxis(1.0f, 0.0f, 0.0f), Center;
@@ -69,6 +69,7 @@ int main(int argc, char* argv[])
 		cy::Vec3f center = (meshData.GetBoundMin() + meshData.GetBoundMax())/2.0f;
 		Center = glm::vec3 (center.x, center.y, center.z);	
 	}
+
 	//Set program
 	CompileShaders();	
 	glUseProgram(program);	
@@ -77,6 +78,7 @@ int main(int argc, char* argv[])
 	initMVP();	
 	mvpLocation = glGetUniformLocation(program, "MVP");
 	glUniformMatrix4fv(mvpLocation, 1, GL_FALSE, &mvp[0][0]);
+
 	//Set buffers
 	GLuint VBO,VAO;
 	glGenVertexArrays(1, &VAO);
@@ -86,8 +88,11 @@ int main(int argc, char* argv[])
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(cy::Vec3f)*meshData.NV(), &meshData.V(0), GL_STATIC_DRAW);	
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(cy::Vec3f), (void*)0);
-	glEnableVertexAttribArray(0);	
-	
+	glEnableVertexAttribArray(0);
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
+
 	while (!glfwWindowShouldClose(window))
 	{	
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -106,12 +111,14 @@ int main(int argc, char* argv[])
 		}
 		else
 			glUseProgram(program);
+
 		glBindVertexArray(VAO);
 		glDrawArrays(GL_POINTS, 0, meshData.NV());
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
+
 	glDeleteVertexArrays(1, &VAO);
 	glDeleteBuffers(1, &VBO);
 	glDeleteProgram(program);
@@ -123,11 +130,13 @@ void inputCallback(GLFWwindow* window, int key, int scancode, int action, int mo
 {
 	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, GLFW_TRUE);	
+
 	if(key==GLFW_KEY_P && action == GLFW_PRESS)
 	{
 		isPerspective = !isPerspective;
 		updateMVP();
 	}
+
 	if (key == GLFW_KEY_F6 && action == GLFW_PRESS)
 		isRecompile = true;
 }
@@ -144,6 +153,7 @@ void mouseInputCallback(GLFWwindow* window, int key, int action, int mods)
 		else if (action == GLFW_RELEASE)
 			isLeftMouseHeld = false;
 	}
+
 	if (key == GLFW_MOUSE_BUTTON_RIGHT)
 	{
 		if (action == GLFW_PRESS)
@@ -167,10 +177,12 @@ void framebufferResizeCallback(GLFWwindow* window, int w, int h)
 void CompileShaders()
 {
 	GLuint vertShader, fragShader;
-	vertShader = glCreateShader(GL_VERTEX_SHADER);
 
+	//Read Vert Shader file and compile
 	std::string vertStr = GetStringFromFile("src/vert.glsl");
 	const char* vert = vertStr.c_str();
+
+	vertShader = glCreateShader(GL_VERTEX_SHADER);
 	glShaderSource(vertShader, 1, &vert, NULL);
 	glCompileShader(vertShader);
 	int success;
@@ -181,10 +193,10 @@ void CompileShaders()
 		return;
 	}
 	
-
-	fragShader = glCreateShader(GL_FRAGMENT_SHADER);
+	//Read Frag Shader file and compile
 	std::string fragStr = GetStringFromFile("src/frag.glsl");
 	const char* frag = fragStr.c_str();
+	fragShader = glCreateShader(GL_FRAGMENT_SHADER);
 	glShaderSource(fragShader, 1, &frag, NULL);
 	glCompileShader(fragShader);
 	glGetShaderiv(fragShader, GL_COMPILE_STATUS, &success);
@@ -194,6 +206,7 @@ void CompileShaders()
 		return;
 	}
 	
+	//Create program and link 
 	program = glCreateProgram();
 	glAttachShader(program, vertShader);
 	glAttachShader(program, fragShader);
@@ -211,29 +224,26 @@ void CompileShaders()
 
 void initMVP()
 {
-	orthoProjection = glm::ortho(-50.0f* (float)width / (float)height, 50.0f* (float)width / (float)height, -50.0f , 50.0f , 0.1f, 200.0f);
-	persProjection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, 0.1f, 500.0f);
-	view = glm::lookAt(glm::vec3(0, 0, dist), glm::vec3(0), UpAxis);
-	model = glm::mat4(1.0f);
-	model = glm::translate(model, -Center);
+	persProjection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, 0.0f, 500.0f);
+	view = glm::lookAt(glm::vec3(0, -50.0f,dist), glm::vec3(0), UpAxis);
+	model = glm::translate(glm::mat4(1.0f), -Center);
 	mvp = persProjection * view * model;
 }
 
 void updateMVP()
 {
+	//Updates perspective when window size changes
 	persProjection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, 0.1f, 200.0f);
-	view = glm::lookAt(glm::vec3(0, 0, dist), glm::vec3(0), UpAxis);
+	//Changes to cam pos through input
+	view = glm::lookAt(glm::vec3(0, -50.0f, dist), glm::vec3(0), UpAxis);
 	if (!isPerspective)
 	{
-		orthoProjection = glm::ortho(-50.0f * (float)width / (float)height, 50.0f * (float)width / (float)height, -50.0f, 50.0f, 0.1f, 100.0f);
-		glm::scale(model, glm::vec3(1.0f/dist));
+		orthoProjection = glm::ortho(-50.0f * (float)width / (float)height, 50.0f * (float)width / (float)height, -50.0f, 50.0f, 0.1f, 100.0f);		
 		mvp = orthoProjection * view * model;
 	}
-	else
-	{
-		glm::scale(model, glm::vec3(1.0f));
+	else	
 		mvp = persProjection * view * model;
-	}
+	
 	glUniformMatrix4fv(mvpLocation, 1, GL_FALSE, &mvp[0][0]);
 }
 
@@ -252,8 +262,10 @@ void mouseInputTransformations(GLFWwindow* window)
 	{
 		glfwGetCursorPos(window, &curMousePosL.x, &curMousePosL.y);
 		deltaMousePosL = curMousePosL - prevMousePosL;
-		model = glm::rotate(model,(float)deltaMousePosL.x*0.01f, glm::vec3(0.0f,0.0f,1.0f));
-		model = glm::rotate(model, (float)deltaMousePosL.y*0.01f, RightAxis);
+		model = glm::rotate(model,(float)deltaMousePosL.x * 0.01f, glm::vec3(0.0f,0.0f,1.0f));
+		model = glm::translate(model, Center);
+		model = glm::rotate(model, (float)deltaMousePosL.y * 0.01f, RightAxis);
+		model = glm::translate(model, -Center);
 		glfwGetCursorPos(window, &prevMousePosL.x, &prevMousePosL.y);
 	}
 	updateMVP();
