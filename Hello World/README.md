@@ -8,7 +8,7 @@
 
 Additional Requirements 
 
--Automatically animate the background color ✓
+- Automatically animate the background color ✓
 
 ## Output
 
