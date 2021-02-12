@@ -62,7 +62,7 @@ int main(int argc, char* argv[])
 		std::cout << "obj loading failed";
 		return -1;
 	}	
-	std::cout << "obj loading complete";		
+	std::cout << "obj loading complete \n";		
 	meshData.ComputeBoundingBox();
 	if (meshData.IsBoundBoxReady())
 	{		
