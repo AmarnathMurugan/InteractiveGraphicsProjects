@@ -255,7 +255,8 @@ void mouseInputTransformations(GLFWwindow* window)
 		glfwGetCursorPos(window, &curMousePosR.x, &curMousePosR.y);
 		delta = curMousePosR.y - prevMousePosR.y;
 		dist += delta;		
-		dist = dist < 0 ? 0 : dist;
+		dist = dist < 0.5 ? 0.5 : dist;
+		dist = dist > 80 ? 80 : dist;
 		glfwGetCursorPos(window, &prevMousePosR.x, &prevMousePosR.y);
 	}
 	if (isLeftMouseHeld)
@@ -263,9 +264,9 @@ void mouseInputTransformations(GLFWwindow* window)
 		glfwGetCursorPos(window, &curMousePosL.x, &curMousePosL.y);
 		deltaMousePosL = curMousePosL - prevMousePosL;
 		model = glm::rotate(model,(float)deltaMousePosL.x * 0.01f, glm::vec3(0.0f,0.0f,1.0f));
-		model = glm::translate(model, Center);
+		/*model = glm::translate(model, Center);
 		model = glm::rotate(model, (float)deltaMousePosL.y * 0.01f, RightAxis);
-		model = glm::translate(model, -Center);
+		model = glm::translate(model, -Center);*/
 		glfwGetCursorPos(window, &prevMousePosL.x, &prevMousePosL.y);
 	}
 	updateMVP();
