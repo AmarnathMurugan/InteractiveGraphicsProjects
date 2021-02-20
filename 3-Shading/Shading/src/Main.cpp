@@ -5,10 +5,12 @@
 #include<glm/glm.hpp>
 #include<glm/gtc/matrix_transform.hpp>
 #include "headers/cutils.h"
+#include <map>
 
 void inputCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
 void mouseInputCallback(GLFWwindow* window, int key, int action, int mods);
 void framebufferResizeCallback(GLFWwindow* window, int w, int h);
+void ProcessMesh();
 void initMVP();
 void updateMVP();
 void CompileShaders();
@@ -16,12 +18,18 @@ void CompileShaders();
 void mouseInputTransformations(GLFWwindow* window);
 
 unsigned int width = 960, height = 540;
+
 float yRot=0, xRot=0,dist=50,yOffset=0;
-glm::mat4 persProjection, orthoProjection, model, view, mvp;
+glm::mat4 persProjection, orthoProjection, model, view, mvp, mv;
+glm::mat3 mvNormal;
 glm::dvec2 prevMousePosL, prevMousePosR, curMousePosL, deltaMousePosL, curMousePosR;
 glm::vec3 UpAxis(0.0f, 1.0f, 0.0f), RightAxis(1.0f, 0.0f, 0.0f), Center;
+
+cy::TriMesh meshData;
+std::vector<Vertdata> data;
+
 bool isPerspective=true,isLeftMouseHeld = false, isRightMouseHeld = false, isRecompile=false;
-GLuint mvpLocation;
+GLuint mvpLocation,mvLocation;
 GLuint program;
 
 int main(int argc, char* argv[])
@@ -55,29 +63,23 @@ int main(int argc, char* argv[])
 	glfwSetMouseButtonCallback(window, mouseInputCallback);
 	glfwSetKeyCallback(window, inputCallback);	
 
-	//Load model
-	cy::TriMesh meshData;
+	//Load model	
 	if (!meshData.LoadFromFileObj(argv[1], false))
 	{
 		std::cout << "obj loading failed";
 		return -1;
 	}	
 	std::cout << "obj loading complete \n";		
-	meshData.ComputeBoundingBox();
-	if (meshData.IsBoundBoxReady())
-	{		
-		cy::Vec3f center = (meshData.GetBoundMin() + meshData.GetBoundMax())/2.0f;
-		Center = glm::vec3 (center.x, center.y, center.z);	
-	}
+	
+	ProcessMesh();
+
 	//Set program
 	CompileShaders();	
 	glUseProgram(program);	
 
 	//Set MVP matrix
-	initMVP();	
-	mvpLocation = glGetUniformLocation(program, "MVP");
-	glUniformMatrix4fv(mvpLocation, 1, GL_FALSE, &mvp[0][0]);
-
+	initMVP();		
+	
 	//Set buffers
 	GLuint VBO,VAO,EBO;
 	glGenVertexArrays(1, &VAO);
@@ -85,14 +87,16 @@ int main(int argc, char* argv[])
 
 	glGenBuffers(1, &VBO);
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(cy::Vec3f)*meshData.NV(), &meshData.V(0), GL_STATIC_DRAW);	
+	glBufferData(GL_ARRAY_BUFFER, sizeof(Vertdata)*data.size(), &data[0], GL_STATIC_DRAW);	
 
 	glGenBuffers(1, &EBO);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cy::TriMesh::TriFace) * meshData.NF(), &meshData.F(0), GL_STATIC_DRAW);
 
 	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(cy::Vec3f), (void*)0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3)*2, (void*)0);
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3)*2, (void*)offsetof(Vertdata, normal));
 
 	while (!glfwWindowShouldClose(window))
 	{	
@@ -226,8 +230,15 @@ void initMVP()
 {
 	persProjection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, 0.0f, 500.0f);
 	view = glm::lookAt(glm::vec3(0, -50.0f,dist), glm::vec3(0), UpAxis);
+	//Center Model
 	model = glm::translate(glm::mat4(1.0f), -Center);
-	mvp = persProjection * view * model;
+	mv =  view * model;
+	mvp = persProjection * mv;
+	mvpLocation = glGetUniformLocation(program, "MVP");
+	mvLocation = glGetUniformLocation(program, "MV");
+	glUniformMatrix4fv(mvpLocation, 1, GL_FALSE, &mvp[0][0]);
+	mvNormal = glm::transpose(glm::inverse(glm::mat3(mv)));
+	glUniformMatrix3fv(mvLocation, 1, GL_FALSE, &mvNormal[0][0]);	
 }
 
 void updateMVP()
@@ -239,12 +250,18 @@ void updateMVP()
 	if (!isPerspective)
 	{
 		orthoProjection = glm::ortho(-50.0f * (float)width / (float)height, 50.0f * (float)width / (float)height, -50.0f, 50.0f, 0.1f, 100.0f);		
-		mvp = orthoProjection * view * model;
+		mv = view * model;
+		mvp = orthoProjection * mv;
 	}
-	else	
-		mvp = persProjection * view * model;
+	else
+	{
+		mv = view * model;
+		mvp = persProjection * mv;
+	}
 	
 	glUniformMatrix4fv(mvpLocation, 1, GL_FALSE, &mvp[0][0]);
+	mvNormal = glm::transpose(glm::inverse(glm::mat3(mv)));
+	glUniformMatrix3fv(mvLocation, 1, GL_FALSE, &mvNormal[0][0]);
 }
 
 void mouseInputTransformations(GLFWwindow* window)
@@ -264,10 +281,62 @@ void mouseInputTransformations(GLFWwindow* window)
 		glfwGetCursorPos(window, &curMousePosL.x, &curMousePosL.y);
 		deltaMousePosL = curMousePosL - prevMousePosL;
 		model = glm::rotate(model,(float)deltaMousePosL.x * 0.01f, glm::vec3(0.0f,0.0f,1.0f));
-		/*model = glm::translate(model, Center);
-		model = glm::rotate(model, (float)deltaMousePosL.y * 0.01f, RightAxis);
-		model = glm::translate(model, -Center);*/
 		glfwGetCursorPos(window, &prevMousePosL.x, &prevMousePosL.y);
 	}
 	updateMVP();
+}
+
+void ProcessMesh()
+{
+	meshData.ComputeBoundingBox();
+	if (meshData.IsBoundBoxReady())
+	{
+		cy::Vec3f center = (meshData.GetBoundMin() + meshData.GetBoundMax()) / 2.0f;
+		Center = glm::vec3(center.x, center.y, center.z);
+	}
+
+	std::map<int, int> faceMap;
+	std::map<std::pair<int, int>, int> modifiedVertMap;
+	glm::vec3 tempPos, tempNorm;
+	for (int i = 0; i < meshData.NV(); i++)
+	{
+		tempPos = glm::vec3(meshData.V(i).x, meshData.V(i).y, meshData.V(i).z);
+		tempNorm = glm::vec3(meshData.VN(i).x, meshData.VN(i).y, meshData.VN(i).z);
+		data.push_back(Vertdata{ tempPos, tempNorm });
+	}
+
+	int pos = 0;
+	for (int i = 0; i < meshData.NF(); i++)
+	{
+		for (int j = 0; j < 3; j++)
+		{
+			if (faceMap.count(meshData.F(i).v[j]) == 0)
+			{
+				faceMap.emplace(meshData.F(i).v[j], meshData.FN(i).v[j]);
+				pos = meshData.FN(i).v[j];
+				data[meshData.F(i).v[j]].normal = glm::vec3(meshData.VN(pos).x, meshData.VN(pos).y, meshData.VN(pos).z);
+			}
+			else if (faceMap.at(meshData.F(i).v[j]) != meshData.FN(i).v[j])
+			{
+				if (modifiedVertMap.count(std::make_pair(meshData.F(i).v[j], meshData.FN(i).v[j])) > 0)
+				{
+					meshData.F(i).v[j] = modifiedVertMap.at(std::make_pair(meshData.F(i).v[j], meshData.FN(i).v[j]));
+				}
+				else
+				{
+					pos = meshData.F(i).v[j];
+					tempPos = glm::vec3(meshData.V(pos).x, meshData.V(pos).y, meshData.V(pos).z);
+
+					pos = meshData.FN(i).v[j];
+					tempNorm = glm::vec3(meshData.VN(pos).x, meshData.VN(pos).y, meshData.VN(pos).z);
+
+					data.push_back(Vertdata{ tempPos, tempNorm });
+					meshData.F(i).v[j] = data.size() - 1;
+
+					modifiedVertMap.emplace(std::make_pair(meshData.F(i).v[j], meshData.FN(i).v[j]), data.size() - 1);
+					faceMap.emplace(data.size() - 1, meshData.FN(i).v[j]);
+				}
+			}
+		}
+	}
 }

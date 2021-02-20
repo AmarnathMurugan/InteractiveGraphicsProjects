@@ -56,6 +56,10 @@ std::string GetStringFromFile(const char* name)
 	return content;
 }
 
+struct Vertdata
+{
+	glm::vec3 position, normal;
+};
 
 #endif // !CUTILS_H
 
