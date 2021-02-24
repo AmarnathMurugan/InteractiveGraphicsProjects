@@ -234,6 +234,8 @@ void initMVP()
 	model = glm::translate(glm::mat4(1.0f), -Center);
 	mv =  view * model;
 	mvp = persProjection * mv;
+
+	//Set uniform values
 	mvpLocation = glGetUniformLocation(program, "MVP");
 	mvLocation = glGetUniformLocation(program, "MV");
 	glUniformMatrix4fv(mvpLocation, 1, GL_FALSE, &mvp[0][0]);
@@ -305,6 +307,7 @@ void ProcessMesh()
 		data.push_back(Vertdata{ tempPos, tempNorm });
 	}
 
+	//Duplicate vertices to avoid conflicts 
 	int pos = 0;
 	for (int i = 0; i < meshData.NF(); i++)
 	{
