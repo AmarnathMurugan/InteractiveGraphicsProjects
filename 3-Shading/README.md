@@ -2,7 +2,7 @@
 
 - Display Triangles ✓
 - Generate and use normal buffers ✓
-- Implement Blinn Shading 
+- Implement Blinn Shading ✓
 
 Additional Requirements 
 

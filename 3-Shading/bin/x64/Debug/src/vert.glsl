@@ -8,13 +8,13 @@ uniform mat3 MV;
 uniform vec3 lightDir;
 uniform vec3 viewDir;
 uniform vec3 diffuseCol;
-uniform float lightIntensity,ambientIntensity;
+uniform float lightIntensity,ambientIntensity,shininess;
 
 out vec3 frag_normal;
 out vec3 frag_lightDir;
 out vec3 frag_viewDir;
 out vec3 frag_diffuseCol;
-out float frag_lightIntensity, frag_ambientIntensity;
+out float frag_lightIntensity, frag_ambientIntensity,frag_shininess;
 
 void main()
 {
@@ -25,4 +25,5 @@ void main()
 	frag_diffuseCol = diffuseCol;
 	frag_lightIntensity = lightIntensity;
 	frag_ambientIntensity = ambientIntensity;
+	frag_shininess = shininess;
 }

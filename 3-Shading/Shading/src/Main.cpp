@@ -35,11 +35,13 @@ std::vector<Vertdata> data;
 
 //Material properties
 glm::vec3 LightPos(1.0f, 2.0f, 3.0f), LightDir, ViewDir, DiffuseColor(0.5f,0.9f,0.8f);
-float LightIntensity = 1.0f, AmbientIntensity = 0.15f, Shininess;
+float LightIntensity = 1.0f, AmbientIntensity = 0.1f, Shininess = 50.0f;
 
 bool isPerspective=true, isLeftMouseHeld = false, isRightMouseHeld = false, isRecompile=false;
 
-GLuint mvpLoc, mvLoc, lightDirLoc, viewDirLoc, diffuseColLoc, lightIntensityLoc, ambientIntensityLoc;
+GLuint mvpLoc, mvLoc, lightDirLoc, viewDirLoc;
+GLuint diffuseColLoc, lightIntensityLoc, ambientIntensityLoc, shininessLoc;
+
 GLuint program;
 
 int main(int argc, char* argv[])
@@ -250,6 +252,7 @@ void setUniformLocations()
 	diffuseColLoc = glGetUniformLocation(program, "diffuseCol");
 	lightIntensityLoc = glGetUniformLocation(program, "lightIntensity");
 	ambientIntensityLoc = glGetUniformLocation(program, "ambientIntensity");
+	shininessLoc = glGetUniformLocation(program, "shininess");
 }
 
 void initMVP()
@@ -302,6 +305,7 @@ void setMaterialProperties()
 	glUniform3f(lightDirLoc, LightDir.x, LightDir.y, LightDir.z);
 	glUniform1f(lightIntensityLoc, LightIntensity);
 	glUniform1f(ambientIntensityLoc, AmbientIntensity);
+	glUniform1f(shininessLoc, Shininess);
 }
 
 void mouseInputTransformations(GLFWwindow* window)

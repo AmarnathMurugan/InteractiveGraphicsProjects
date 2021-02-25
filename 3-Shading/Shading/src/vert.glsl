@@ -25,4 +25,5 @@ void main()
 	frag_diffuseCol = diffuseCol;
 	frag_lightIntensity = lightIntensity;
 	frag_ambientIntensity = ambientIntensity;
+	frag_shininess = shininess;
 }
