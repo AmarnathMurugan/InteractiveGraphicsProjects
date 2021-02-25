@@ -97,11 +97,12 @@ int main(int argc, char* argv[])
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3)*2, (void*)0);
 	glEnableVertexAttribArray(1);
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3)*2, (void*)offsetof(Vertdata, normal));
-
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
 	while (!glfwWindowShouldClose(window))
 	{	
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		if (isRightMouseHeld || isLeftMouseHeld) mouseInputTransformations(window);
 
@@ -228,7 +229,7 @@ void CompileShaders()
 
 void initMVP()
 {
-	persProjection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, 0.0f, 500.0f);
+	persProjection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, 1.0f, 200.0f);
 	view = glm::lookAt(glm::vec3(0, -50.0f,dist), glm::vec3(0), UpAxis);
 	//Center Model
 	model = glm::translate(glm::mat4(1.0f), -Center);
@@ -246,7 +247,7 @@ void initMVP()
 void updateMVP()
 {
 	//Updates perspective when window size changes
-	persProjection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, 0.1f, 200.0f);
+	persProjection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, 1.0f, 200.0f);
 	//Changes to cam pos through input
 	view = glm::lookAt(glm::vec3(0, -50.0f, dist), glm::vec3(0), UpAxis);
 	if (!isPerspective)
