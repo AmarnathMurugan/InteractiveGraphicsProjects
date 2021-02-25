@@ -1,7 +1,7 @@
 ## Requirements
 
 - Display Triangles ✓
-- Generate and use normal buffers
+- Generate and use normal buffers ✓
 - Implement Blinn Shading 
 
 Additional Requirements 
