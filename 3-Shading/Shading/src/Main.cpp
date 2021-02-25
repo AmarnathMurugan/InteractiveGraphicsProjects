@@ -7,29 +7,39 @@
 #include "headers/cutils.h"
 #include <map>
 
+//OpenGL callbacks
 void inputCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
 void mouseInputCallback(GLFWwindow* window, int key, int action, int mods);
 void framebufferResizeCallback(GLFWwindow* window, int w, int h);
-void ProcessMesh();
+
+void processMesh();
+void compileShaders();
+void setUniformLocations();
 void initMVP();
 void updateMVP();
-void CompileShaders();
+void setMaterialProperties();
 
 void mouseInputTransformations(GLFWwindow* window);
 
 unsigned int width = 960, height = 540;
 
-float yRot=0, xRot=0,dist=50,yOffset=0;
+float yRot=0, xRot=0,zCamDist=2.0,yCamDist=-2.0,yOffset=0,CamSpeed = 0.1f;
 glm::mat4 persProjection, orthoProjection, model, view, mvp, mv;
 glm::mat3 mvNormal;
 glm::dvec2 prevMousePosL, prevMousePosR, curMousePosL, deltaMousePosL, curMousePosR;
+glm::vec2 CamDistLimit(0.5f, 5.0f);
 glm::vec3 UpAxis(0.0f, 1.0f, 0.0f), RightAxis(1.0f, 0.0f, 0.0f), Center;
 
 cy::TriMesh meshData;
 std::vector<Vertdata> data;
 
-bool isPerspective=true,isLeftMouseHeld = false, isRightMouseHeld = false, isRecompile=false;
-GLuint mvpLocation,mvLocation;
+//Material properties
+glm::vec3 LightPos(1.0f, 2.0f, 3.0f), LightDir, ViewDir, DiffuseColor(0.5f,0.9f,0.8f);
+float LightIntensity = 1.0f, AmbientIntensity = 0.15f, Shininess;
+
+bool isPerspective=true, isLeftMouseHeld = false, isRightMouseHeld = false, isRecompile=false;
+
+GLuint mvpLoc, mvLoc, lightDirLoc, viewDirLoc, diffuseColLoc, lightIntensityLoc, ambientIntensityLoc;
 GLuint program;
 
 int main(int argc, char* argv[])
@@ -71,11 +81,15 @@ int main(int argc, char* argv[])
 	}	
 	std::cout << "obj loading complete \n";		
 	
-	ProcessMesh();
+	processMesh();
+	std::cout << "height:" << meshData.GetBoundMax().y - meshData.GetBoundMin().y;
 
 	//Set program
-	CompileShaders();	
+	compileShaders();	
 	glUseProgram(program);	
+
+
+	setUniformLocations();
 
 	//Set MVP matrix
 	initMVP();		
@@ -98,7 +112,7 @@ int main(int argc, char* argv[])
 	glEnableVertexAttribArray(1);
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3)*2, (void*)offsetof(Vertdata, normal));
 	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_CULL_FACE);
+	//glEnable(GL_CULL_FACE);
 	while (!glfwWindowShouldClose(window))
 	{	
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -109,10 +123,10 @@ int main(int argc, char* argv[])
 		if (isRecompile)
 		{
 			glDeleteProgram(program);
-			CompileShaders();
+			compileShaders();
 			glUseProgram(program);
-			mvpLocation = glGetUniformLocation(program, "MVP");
-			glUniformMatrix4fv(mvpLocation, 1, GL_FALSE, &mvp[0][0]);
+			mvpLoc = glGetUniformLocation(program, "MVP");
+			glUniformMatrix4fv(mvpLoc, 1, GL_FALSE, &mvp[0][0]);
 			isRecompile = false;			
 		}
 		else
@@ -179,7 +193,7 @@ void framebufferResizeCallback(GLFWwindow* window, int w, int h)
 	updateMVP();
 }
 
-void CompileShaders()
+void compileShaders()
 {
 	GLuint vertShader, fragShader;
 
@@ -224,32 +238,44 @@ void CompileShaders()
 	}
 	std::cout << "Shader Compilation Complete \n";
 	glDeleteShader(vertShader);
-	glDeleteShader(fragShader);
+	glDeleteShader(fragShader);	
+}
+
+void setUniformLocations()
+{
+	mvpLoc = glGetUniformLocation(program, "MVP");
+	mvLoc = glGetUniformLocation(program, "MV");
+	lightDirLoc = glGetUniformLocation(program, "lightDir");
+	viewDirLoc = glGetUniformLocation(program, "viewDir");
+	diffuseColLoc = glGetUniformLocation(program, "diffuseCol");
+	lightIntensityLoc = glGetUniformLocation(program, "lightIntensity");
+	ambientIntensityLoc = glGetUniformLocation(program, "ambientIntensity");
 }
 
 void initMVP()
 {
-	persProjection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, 1.0f, 200.0f);
-	view = glm::lookAt(glm::vec3(0, -50.0f,dist), glm::vec3(0), UpAxis);
+	persProjection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, 0.5f, 10.0f);
+	view = glm::lookAt(glm::vec3(0, yCamDist,zCamDist), glm::vec3(0), UpAxis);
 	//Center Model
-	model = glm::translate(glm::mat4(1.0f), -Center);
+	model = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f / (meshData.GetBoundMax().y - meshData.GetBoundMin().y)))
+			* glm::translate(glm::mat4(1.0f), -Center);
 	mv =  view * model;
 	mvp = persProjection * mv;
 
-	//Set uniform values
-	mvpLocation = glGetUniformLocation(program, "MVP");
-	mvLocation = glGetUniformLocation(program, "MV");
-	glUniformMatrix4fv(mvpLocation, 1, GL_FALSE, &mvp[0][0]);
+	//Set values in shader	
+	glUniformMatrix4fv(mvpLoc, 1, GL_FALSE, &mvp[0][0]);
 	mvNormal = glm::transpose(glm::inverse(glm::mat3(mv)));
-	glUniformMatrix3fv(mvLocation, 1, GL_FALSE, &mvNormal[0][0]);	
+	glUniformMatrix3fv(mvLoc, 1, GL_FALSE, &mvNormal[0][0]);
+
+	setMaterialProperties();
 }
 
 void updateMVP()
 {
 	//Updates perspective when window size changes
-	persProjection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, 1.0f, 200.0f);
+	persProjection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, 0.5f, 10.0f);
 	//Changes to cam pos through input
-	view = glm::lookAt(glm::vec3(0, -50.0f, dist), glm::vec3(0), UpAxis);
+	view = glm::lookAt(glm::vec3(0, yCamDist, zCamDist), glm::vec3(0), UpAxis);
 	if (!isPerspective)
 	{
 		orthoProjection = glm::ortho(-50.0f * (float)width / (float)height, 50.0f * (float)width / (float)height, -50.0f, 50.0f, 0.1f, 100.0f);		
@@ -262,9 +288,20 @@ void updateMVP()
 		mvp = persProjection * mv;
 	}
 	
-	glUniformMatrix4fv(mvpLocation, 1, GL_FALSE, &mvp[0][0]);
+	glUniformMatrix4fv(mvpLoc, 1, GL_FALSE, &mvp[0][0]);
 	mvNormal = glm::transpose(glm::inverse(glm::mat3(mv)));
-	glUniformMatrix3fv(mvLocation, 1, GL_FALSE, &mvNormal[0][0]);
+	glUniformMatrix3fv(mvLoc, 1, GL_FALSE, &mvNormal[0][0]);
+}
+
+void setMaterialProperties()
+{
+	LightDir = glm::normalize(LightPos);
+	ViewDir = glm::normalize(glm::vec3(0, yCamDist, zCamDist));
+	glUniform3f(diffuseColLoc, DiffuseColor.x, DiffuseColor.y, DiffuseColor.z);
+	glUniform3f(viewDirLoc, ViewDir.x, ViewDir.y, ViewDir.z);
+	glUniform3f(lightDirLoc, LightDir.x, LightDir.y, LightDir.z);
+	glUniform1f(lightIntensityLoc, LightIntensity);
+	glUniform1f(ambientIntensityLoc, AmbientIntensity);
 }
 
 void mouseInputTransformations(GLFWwindow* window)
@@ -274,9 +311,9 @@ void mouseInputTransformations(GLFWwindow* window)
 	{
 		glfwGetCursorPos(window, &curMousePosR.x, &curMousePosR.y);
 		delta = curMousePosR.y - prevMousePosR.y;
-		dist += delta;		
-		dist = dist < 0.5 ? 0.5 : dist;
-		dist = dist > 80 ? 80 : dist;
+		zCamDist += delta * CamSpeed;
+		zCamDist = zCamDist < CamDistLimit.x ? CamDistLimit.x : zCamDist;
+		zCamDist = zCamDist > CamDistLimit.y ? CamDistLimit.y : zCamDist;
 		glfwGetCursorPos(window, &prevMousePosR.x, &prevMousePosR.y);
 	}
 	if (isLeftMouseHeld)
@@ -289,7 +326,7 @@ void mouseInputTransformations(GLFWwindow* window)
 	updateMVP();
 }
 
-void ProcessMesh()
+void processMesh()
 {
 	meshData.ComputeBoundingBox();
 	if (meshData.IsBoundBoxReady())

@@ -1,9 +1,18 @@
 #version 330 core
 
-in vec3 col;
+in vec3 frag_normal;
+in vec3 frag_lightDir;
+in vec3 frag_viewDir;
+in vec3 frag_diffuseCol;
+in float frag_lightIntensity, frag_ambientIntensity;
+
+vec3 curCol,halfVec;
+
 out vec4 FragCol;
 
 void main()
 {
-	FragCol = vec4(col, 1.0f);
+	curCol = frag_diffuseCol*(frag_lightIntensity * max(0,dot(frag_normal,frag_lightDir)) + frag_ambientIntensity);
+	halfVec = normalize(frag_lightDir + frag_viewDir);
+	FragCol = vec4(curCol, 1.0f);
 }
