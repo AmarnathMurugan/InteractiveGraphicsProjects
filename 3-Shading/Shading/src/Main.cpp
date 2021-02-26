@@ -18,7 +18,7 @@ void setUniformLocations();
 void initMVP();
 void updateMVP();
 void setMaterialProperties();
-
+void createTetrahefron();
 void mouseInputTransformations(GLFWwindow* window);
 
 unsigned int width = 960, height = 540;
@@ -55,7 +55,7 @@ int main(int argc, char* argv[])
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	
 	//Create window
-	GLFWwindow* window = glfwCreateWindow(width, height, "New Window", NULL, NULL);
+	GLFWwindow* window = glfwCreateWindow(width, height, "Shading", NULL, NULL);
 	if (window == NULL)
 	{
 		glfwTerminate();

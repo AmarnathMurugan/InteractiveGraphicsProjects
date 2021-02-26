@@ -12,4 +12,4 @@ Additional Requirements
 
 ## Output
 
-![Prj1 output](https://github.com/AmarnathMurugan/InteractiveGraphicsProjects/blob/main/Pictures/3_spec.JPG)
+![Prj3 output](https://github.com/AmarnathMurugan/InteractiveGraphicsProjects/blob/main/Pictures/prj3.gif)
