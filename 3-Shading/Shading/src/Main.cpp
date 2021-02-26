@@ -24,9 +24,9 @@ void mouseInputTransformations(GLFWwindow* window);
 unsigned int width = 960, height = 540;
 
 float yRot=0, xRot=0,zCamDist=2.0,yCamDist=-2.0,yOffset=0,CamSpeed = 0.1f;
-glm::mat4 persProjection, orthoProjection, model, view, mvp, mv;
+glm::mat4 persProjection, orthoProjection, model, view, mvp, mv, lightTransformMatrix(1.0f);
 glm::mat3 mvNormal;
-glm::dvec2 prevMousePosL, prevMousePosR, curMousePosL, deltaMousePosL, curMousePosR;
+glm::dvec2 prevMousePos, curMousePos, deltaMousePos;
 glm::vec2 CamDistLimit(0.5f, 5.0f);
 glm::vec3 UpAxis(0.0f, 1.0f, 0.0f), RightAxis(1.0f, 0.0f, 0.0f), Center;
 
@@ -35,9 +35,9 @@ std::vector<Vertdata> data;
 
 //Material properties
 glm::vec3 LightPos(1.0f, 2.0f, 3.0f), LightDir, ViewDir, DiffuseColor(0.5f,0.9f,0.8f);
-float LightIntensity = 1.0f, AmbientIntensity = 0.1f, Shininess = 50.0f;
+float LightIntensity = 1.0f, AmbientIntensity = 0.1f, Shininess = 100.0f;
 
-bool isPerspective=true, isLeftMouseHeld = false, isRightMouseHeld = false, isRecompile=false;
+bool isPerspective=true, isLeftMouseHeld = false, isRightMouseHeld = false, isCtrlHeld = false, isRecompile=false;
 
 GLuint mvpLoc, mvLoc, lightDirLoc, viewDirLoc;
 GLuint diffuseColLoc, lightIntensityLoc, ambientIntensityLoc, shininessLoc;
@@ -158,6 +158,17 @@ void inputCallback(GLFWwindow* window, int key, int scancode, int action, int mo
 		updateMVP();
 	}
 
+	if (key == GLFW_KEY_LEFT_CONTROL)
+	{
+		if (action == GLFW_PRESS)
+		{
+			isCtrlHeld = true;
+			glfwGetCursorPos(window, &prevMousePos.x, &prevMousePos.y);
+		}
+		else if (action == GLFW_RELEASE)
+			isCtrlHeld = false;
+	}
+
 	if (key == GLFW_KEY_F6 && action == GLFW_PRESS)
 		isRecompile = true;
 }
@@ -169,7 +180,7 @@ void mouseInputCallback(GLFWwindow* window, int key, int action, int mods)
 		if (action == GLFW_PRESS)
 		{
 			isLeftMouseHeld = true;
-			glfwGetCursorPos(window, &prevMousePosL.x, &prevMousePosL.y);
+			glfwGetCursorPos(window, &prevMousePos.x, &prevMousePos.y);
 		}
 		else if (action == GLFW_RELEASE)
 			isLeftMouseHeld = false;
@@ -179,7 +190,7 @@ void mouseInputCallback(GLFWwindow* window, int key, int action, int mods)
 	{
 		if (action == GLFW_PRESS)
 		{
-			glfwGetCursorPos(window, &prevMousePosR.x, &prevMousePosR.y);
+			glfwGetCursorPos(window, &prevMousePos.x, &prevMousePos.y);
 			isRightMouseHeld = true;
 		}
 		else if (action == GLFW_RELEASE)
@@ -298,10 +309,10 @@ void updateMVP()
 
 void setMaterialProperties()
 {
-	LightDir = glm::normalize(LightPos);
-	ViewDir = glm::normalize(glm::vec3(0, yCamDist, zCamDist));
 	glUniform3f(diffuseColLoc, DiffuseColor.x, DiffuseColor.y, DiffuseColor.z);
+	ViewDir = glm::normalize(glm::vec3(0, yCamDist, zCamDist));
 	glUniform3f(viewDirLoc, ViewDir.x, ViewDir.y, ViewDir.z);
+	LightDir = glm::normalize(LightPos);
 	glUniform3f(lightDirLoc, LightDir.x, LightDir.y, LightDir.z);
 	glUniform1f(lightIntensityLoc, LightIntensity);
 	glUniform1f(ambientIntensityLoc, AmbientIntensity);
@@ -310,23 +321,44 @@ void setMaterialProperties()
 
 void mouseInputTransformations(GLFWwindow* window)
 {
-	double delta = 0;
+	glfwGetCursorPos(window, &curMousePos.x, &curMousePos.y);
+	deltaMousePos = curMousePos - prevMousePos;
 	if (isRightMouseHeld)
-	{
-		glfwGetCursorPos(window, &curMousePosR.x, &curMousePosR.y);
-		delta = curMousePosR.y - prevMousePosR.y;
-		zCamDist += delta * CamSpeed;
-		zCamDist = zCamDist < CamDistLimit.x ? CamDistLimit.x : zCamDist;
-		zCamDist = zCamDist > CamDistLimit.y ? CamDistLimit.y : zCamDist;
-		glfwGetCursorPos(window, &prevMousePosR.x, &prevMousePosR.y);
+	{ 
+		if (isCtrlHeld)
+		{
+			lightTransformMatrix = glm::rotate(glm::mat4(1.0), (float)deltaMousePos.y * 0.01f, glm::vec3(1.0f, 0.0f, 0.0f));		
+			LightPos = glm::vec3((lightTransformMatrix * glm::vec4(LightPos, 1.0f)));
+			LightDir = glm::normalize(LightPos);
+			glUniform3f(lightDirLoc, LightDir.x, LightDir.y, LightDir.z);
+		}
+		else
+		{
+			zCamDist += deltaMousePos.y * CamSpeed;
+			zCamDist = zCamDist < CamDistLimit.x ? CamDistLimit.x : zCamDist;
+			zCamDist = zCamDist > CamDistLimit.y ? CamDistLimit.y : zCamDist;
+		}
 	}
 	if (isLeftMouseHeld)
 	{
-		glfwGetCursorPos(window, &curMousePosL.x, &curMousePosL.y);
-		deltaMousePosL = curMousePosL - prevMousePosL;
-		model = glm::rotate(model,(float)deltaMousePosL.x * 0.01f, glm::vec3(0.0f,0.0f,1.0f));
-		glfwGetCursorPos(window, &prevMousePosL.x, &prevMousePosL.y);
+		if (isCtrlHeld)
+		{
+			lightTransformMatrix = glm::rotate(glm::mat4(1.0), (float)deltaMousePos.x * 0.01f, glm::vec3(0.0f, 1.0f, 0.0f));
+			LightPos = glm::vec3((lightTransformMatrix * glm::vec4(LightPos,1.0f)));
+			LightDir = glm::normalize(LightPos);
+			glUniform3f(lightDirLoc, LightDir.x, LightDir.y, LightDir.z);
+		}
+		else
+		{
+			model = glm::rotate(model, (float)deltaMousePos.x * 0.01f, glm::vec3(0.0f, 0.0f, 1.0f));
+			/* Rotation in X axis
+			model = glm::translate(model, Center);
+			model = glm::rotate(model, (float)deltaMousePos.y * 0.01f, glm::vec3(1.0f, 0.0f, 0.0f));
+			model = glm::translate(model, -Center);
+			*/
+		}
 	}
+	prevMousePos = curMousePos;
 	updateMVP();
 }
 
