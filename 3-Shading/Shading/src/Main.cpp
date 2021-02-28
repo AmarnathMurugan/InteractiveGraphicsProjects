@@ -18,7 +18,8 @@ void setUniformLocations();
 void initMVP();
 void updateMVP();
 void setShaderProperties();
-void createTetrahedron();
+void initModelBuffer();
+void initOctahedronBuffer();
 void mouseInputTransformations(GLFWwindow* window);
 
 unsigned int width = 960, height = 540;
@@ -42,6 +43,8 @@ bool isPerspective=true, isLeftMouseHeld = false, isRightMouseHeld = false, isCt
 GLuint mvpLoc, mvLoc, lightDirLoc, viewDirLoc, lightMvpLoc;
 GLuint diffuseColLoc, lightIntensityLoc, ambientIntensityLoc, shininessLoc;
 
+GLuint lightVBO, lightVAO, lightEBO;
+GLuint modelVBO, modelVAO, modelEBO;
 GLuint ModelProgram, LightProgram;
 
 int main(int argc, char* argv[])
@@ -103,61 +106,11 @@ int main(int argc, char* argv[])
 	setShaderProperties();
 	
 	//Set buffers
-	GLuint VBO,VAO,EBO;
-	glGenVertexArrays(1, &VAO);
-	glBindVertexArray(VAO);
-
-	glGenBuffers(1, &VBO);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(Vertdata)*data.size(), &data[0], GL_STATIC_DRAW);	
-
-	glGenBuffers(1, &EBO);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cy::TriMesh::TriFace) * meshData.NF(), &meshData.F(0), GL_STATIC_DRAW);
-
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3)*2, (void*)0);
-	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3)*2, (void*)offsetof(Vertdata, normal));
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
-
-	float TetraPos[]=
-	{
-		0,0.75,0,
-		-0.5,0,0.5,
-		0.5,0,0.5,
-		0.5,0,-0.5,
-		-0.5,0,-0.5,
-		0,-0.75,0
-	};
-
-	unsigned int TetraElems[] =
-	{
-		0,4,1,
-		0,1,2,
-		0,2,3,
-		0,3,4,
-		5,4,3,
-		5,1,4,
-		5,1,2,
-		5,3,2
-	};
 	
-	GLuint lightVBO, lightVAO, lightEBO;
-	glGenVertexArrays(1, &lightVAO);
-	glBindVertexArray(lightVAO);
+	initModelBuffer();
 
-	glGenBuffers(1, &lightVBO);
-	glBindBuffer(GL_ARRAY_BUFFER, lightVBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(TetraPos), TetraPos, GL_STATIC_DRAW);
+	initOctahedronBuffer();
 
-	glGenBuffers(1, &lightEBO);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, lightEBO);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(TetraElems), TetraElems, GL_STATIC_DRAW);
-
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float)*3, (void*)0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
 
@@ -171,7 +124,7 @@ int main(int argc, char* argv[])
 		
 		glUseProgram(LightProgram);
 		glBindVertexArray(lightVAO);
-		glDrawElements(GL_TRIANGLES, sizeof(TetraElems) / sizeof(unsigned int), GL_UNSIGNED_INT, 0);
+		glDrawElements(GL_TRIANGLES, 24, GL_UNSIGNED_INT, 0);
 
 		if (isRecompile)
 		{
@@ -185,7 +138,7 @@ int main(int argc, char* argv[])
 		else
 			glUseProgram(ModelProgram);
 		
-		glBindVertexArray(VAO);
+		glBindVertexArray(modelVAO);
 		glDrawElements(GL_TRIANGLES, meshData.NF()*3, GL_UNSIGNED_INT, 0);
 
 		
@@ -194,9 +147,9 @@ int main(int argc, char* argv[])
 		glfwPollEvents();
 	}
 
-	glDeleteVertexArrays(1, &VAO);
-	glDeleteBuffers(1, &VBO);
-	glDeleteBuffers(1, &EBO);
+	glDeleteVertexArrays(1, &modelVAO);
+	glDeleteBuffers(1, &modelVBO);
+	glDeleteBuffers(1, &modelEBO);
 	glDeleteProgram(ModelProgram);
 
 	glDeleteVertexArrays(1, &lightVAO);
@@ -277,7 +230,6 @@ void framebufferResizeCallback(GLFWwindow* window, int w, int h)
 void compileShaders(std::string vertShdrName, std::string fragShdrName, GLuint& program)
 {
 	GLuint vertShader, fragShader;
-	std::cout << vertShdrName;
 	//Read Vert Shader file and compile
 	std::string path = "src/";
 	std::string vertStr = GetStringFromFile((path+vertShdrName).c_str());
@@ -501,4 +453,66 @@ void processMesh()
 			}
 		}
 	}
+}
+
+void initModelBuffer()
+{
+	glGenVertexArrays(1, &modelVAO);
+	glBindVertexArray(modelVAO);
+
+	glGenBuffers(1, &modelVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, modelVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(Vertdata) * data.size(), &data[0], GL_STATIC_DRAW);
+
+	glGenBuffers(1, &modelEBO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, modelEBO);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cy::TriMesh::TriFace) * meshData.NF(), &meshData.F(0), GL_STATIC_DRAW);
+
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3) * 2, (void*)0);
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3) * 2, (void*)offsetof(Vertdata, normal));
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
+}
+
+void initOctahedronBuffer()
+{
+	float TetraPos[] =
+	{
+		0,0.75,0,
+		-0.5,0,0.5,
+		0.5,0,0.5,
+		0.5,0,-0.5,
+		-0.5,0,-0.5,
+		0,-0.75,0
+	};
+
+	unsigned int TetraElems[] =
+	{
+		0,4,1,
+		0,1,2,
+		0,2,3,
+		0,3,4,
+		5,4,3,
+		5,1,4,
+		5,1,2,
+		5,3,2
+	};
+
+	
+	glGenVertexArrays(1, &lightVAO);
+	glBindVertexArray(lightVAO);
+
+	glGenBuffers(1, &lightVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, lightVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(TetraPos), TetraPos, GL_STATIC_DRAW);
+
+	glGenBuffers(1, &lightEBO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, lightEBO);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(TetraElems), TetraElems, GL_STATIC_DRAW);
+
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, (void*)0);
 }

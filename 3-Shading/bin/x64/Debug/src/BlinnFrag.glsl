@@ -15,6 +15,7 @@ void main()
 	//Diffuse
 	//curCol = frag_diffuseCol * frag_lightIntensity * max(0,dot(frag_normal,frag_lightDir));
 	curCol = vec3(1.0f) *  max(0,dot(frag_normal,frag_lightDir));
+	
 	//Specular
 	halfVec = normalize(frag_lightDir + frag_viewDir);	
 	//curCol += vec3(1.0f) * frag_lightIntensity * pow(max(0,dot(halfVec,frag_normal)), frag_shininess);
