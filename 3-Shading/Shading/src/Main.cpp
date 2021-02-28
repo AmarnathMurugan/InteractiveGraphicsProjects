@@ -232,6 +232,13 @@ void inputCallback(GLFWwindow* window, int key, int scancode, int action, int mo
 
 	if (key == GLFW_KEY_F6 && action == GLFW_PRESS)
 		isRecompile = true;
+
+	if (key == GLFW_KEY_C && action == GLFW_PRESS)
+	{
+		std::cout << "\nLight Dir:" << LightDir.x << "," << LightDir.y << "," << LightDir.z;
+		std::cout << "\nView Dir:" << ViewDir.x << "," << ViewDir.y << "," << ViewDir.z;
+		std::cout<<"\nDot:"<<glm::dot(UpAxis, LightDir);
+	}
 }
 
 void mouseInputCallback(GLFWwindow* window, int key, int action, int mods)
@@ -318,7 +325,6 @@ void compileShaders(std::string vertShdrName, std::string fragShdrName, GLuint& 
 
 void setUniformLocations()
 {
-	glUseProgram(ModelProgram);
 	mvpLoc = glGetUniformLocation(ModelProgram, "MVP");
 	mvLoc = glGetUniformLocation(ModelProgram, "MV");
 	lightDirLoc = glGetUniformLocation(ModelProgram, "lightDir");
@@ -327,7 +333,6 @@ void setUniformLocations()
 	lightIntensityLoc = glGetUniformLocation(ModelProgram, "lightIntensity");
 	ambientIntensityLoc = glGetUniformLocation(ModelProgram, "ambientIntensity");
 	shininessLoc = glGetUniformLocation(ModelProgram, "shininess");
-	glUseProgram(LightProgram);
 	lightMvpLoc = glGetUniformLocation(LightProgram, "MVP");
 }
 
@@ -337,11 +342,11 @@ void initMVP()
 	camDist = ViewDir.length();
 	ViewDir = glm::normalize(ViewDir);
 	persProjection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, 0.5f, 10.0f);
-	view = glm::lookAt(ViewDir*camDist, glm::vec3(0.0,0.5f,0.0), UpAxis);
+	view = glm::lookAt(ViewDir*camDist, glm::vec3(0.0), UpAxis);
 	//Center Model
 	model = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f / (meshData.GetBoundMax().y - meshData.GetBoundMin().y)));
 	model = glm::rotate(model, glm::radians(-90.0f), RightAxis);
-	//model = glm::translate(model,glm::vec3(0.0,0.0,-Center.z));
+	model = glm::translate(model,glm::vec3(0.0,0.0,-0.5f*(meshData.GetBoundMax().z-meshData.GetBoundMin().z)));
 	mv =  view * model;
 	mvp = persProjection * mv;
 
@@ -364,7 +369,7 @@ void updateMVP()
 	//Updates perspective when window size changes
 	persProjection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, 0.5f, 10.0f);
 	//Changes to cam pos through input
-	view = glm::lookAt(ViewDir * camDist, glm::vec3(0.0, 0.5f, 0.0), UpAxis);
+	view = glm::lookAt(ViewDir * camDist, glm::vec3(0.0), UpAxis);
 	if (!isPerspective)
 	{
 		orthoProjection = glm::ortho(-50.0f * (float)width / (float)height, 50.0f * (float)width / (float)height, -50.0f, 50.0f, 0.1f, 100.0f);		
@@ -388,7 +393,7 @@ void updateMVP()
 	lightModelMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(lightScale));
 	lightModelMatrix = glm::translate(lightModelMatrix, LightPos/lightScale);
 	lightMVP = persProjection * view * lightModelMatrix;
-	glUniformMatrix4fv(lightMvpLoc, 1, GL_FALSE, &lightMVP[0][0]);
+	glUniformMatrix4fv(lightMvpLoc, 1, GL_FALSE, &lightMVP[0][0]);	
 }
 
 void setShaderProperties()
@@ -414,7 +419,6 @@ void mouseInputTransformations(GLFWwindow* window)
 			vectorRotationMatrix = glm::rotate(glm::mat4(1.0), (float)deltaMousePos.y * 0.01f, glm::vec3(1.0f, 0.0f, 0.0f));		
 			LightPos = glm::vec3((vectorRotationMatrix * glm::vec4(LightPos, 1.0f)));
 			LightDir = glm::normalize(LightPos);
-			glUniform3f(lightDirLoc, LightDir.x, LightDir.y, LightDir.z);
 		}
 		else
 		{
@@ -428,15 +432,13 @@ void mouseInputTransformations(GLFWwindow* window)
 		if (isCtrlHeld)
 		{
 			vectorRotationMatrix = glm::rotate(glm::mat4(1.0), (float)deltaMousePos.x * 0.01f, glm::vec3(0.0f, 1.0f, 0.0f));
-			LightPos = glm::vec3((vectorRotationMatrix * glm::vec4(LightPos,0.0f)));
+			LightPos = glm::vec3((vectorRotationMatrix * glm::vec4(LightPos,1.0f)));
 			LightDir = glm::normalize(LightPos);
-			glUniform3f(lightDirLoc, LightDir.x, LightDir.y, LightDir.z);
 		}
 		else
 		{
 			vectorRotationMatrix = glm::rotate(glm::mat4(1.0), (float)deltaMousePos.x * -0.01f, glm::vec3(0.0f, 1.0f, 0.0f));
 			ViewDir = glm::vec3((vectorRotationMatrix * glm::vec4(ViewDir, 0.0f)));
-			ViewDir = glm::normalize(ViewDir);
 			//model= glm::rotate(model, (float)deltaMousePos.x * 0.01f, glm::vec3(0.0f, 0.0f, 1.0f));
 		}
 	}
