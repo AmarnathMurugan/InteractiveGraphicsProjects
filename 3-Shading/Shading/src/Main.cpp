@@ -384,18 +384,17 @@ void mouseInputTransformations(GLFWwindow* window)
 	}
 	if (isLeftMouseHeld)
 	{
+		vectorRotationMatrix = glm::rotate(glm::mat4(1.0), (float)deltaMousePos.x * -0.01f, glm::vec3(0.0f, 1.0f, 0.0f));
 		if (isCtrlHeld)
 		{
-			vectorRotationMatrix = glm::rotate(glm::mat4(1.0), (float)deltaMousePos.x * -0.01f, glm::vec3(0.0f, 1.0f, 0.0f));
 			LightPos = glm::vec3((vectorRotationMatrix * glm::vec4(LightPos,1.0f)));
 			LightDir = glm::normalize(LightPos);
 		}
 		else
-		{
-			vectorRotationMatrix = glm::rotate(glm::mat4(1.0), (float)deltaMousePos.x * -0.01f, glm::vec3(0.0f, 1.0f, 0.0f));
+		{			
 			ViewDir = glm::vec3((vectorRotationMatrix * glm::vec4(ViewDir, 0.0f)));
-			vectorRotationMatrix = glm::rotate(glm::mat4(1.0), (float)deltaMousePos.y * 0.01f, glm::vec3(1.0f, 0.0f, 0.0f));
-			ViewDir = glm::vec3((vectorRotationMatrix * glm::vec4(ViewDir, 0.0f)));
+			/*vectorRotationMatrix = glm::rotate(glm::mat4(1.0), (float)deltaMousePos.y * 0.01f, glm::vec3(1.0f, 0.0f, 0.0f));
+			ViewDir = glm::vec3((vectorRotationMatrix * glm::vec4(ViewDir, 0.0f)));*/
 		}
 	}
 	prevMousePos = curMousePos;
