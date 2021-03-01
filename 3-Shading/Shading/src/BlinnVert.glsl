@@ -20,7 +20,7 @@ void main()
 {
 	gl_Position = MVP * vec4(pos, 1.0);
 	frag_normal = normalize(MV * normal);
-	frag_lightDir = -lightDir;
+	frag_lightDir = lightDir;
 	frag_viewDir = viewDir;	
 	frag_diffuseCol = diffuseCol;
 	frag_lightIntensity = lightIntensity;

@@ -295,7 +295,7 @@ void initMVP()
 	ViewDir = glm::normalize(ViewDir);
 	persProjection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, 0.5f, 10.0f);
 	view = glm::lookAt(ViewDir*camDist, glm::vec3(0.0), UpAxis);
-	//Center Model
+	//Scale model to make height 1, rotate to make it upright and center model to origin
 	model = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f / (meshData.GetBoundMax().y - meshData.GetBoundMin().y)));
 	model = glm::rotate(model, glm::radians(-90.0f), RightAxis);
 	model = glm::translate(model,glm::vec3(0.0,0.0,-0.5f*(meshData.GetBoundMax().z-meshData.GetBoundMin().z)));
@@ -324,9 +324,10 @@ void updateMVP()
 	view = glm::lookAt(ViewDir * camDist, glm::vec3(0.0), UpAxis);
 	if (!isPerspective)
 	{
-		orthoProjection = glm::ortho(-50.0f * (float)width / (float)height, 50.0f * (float)width / (float)height, -50.0f, 50.0f, 0.1f, 100.0f);		
+		float multiplier = 5.0f;
+		orthoProjection = glm::ortho(-multiplier * (float)width / (float)height, multiplier * (float)width / (float)height, -multiplier, multiplier, 0.1f, 10.0f);		
 		mv = view * model;
-		mvp = orthoProjection * mv;
+		mvp = orthoProjection * view * model;
 	}
 	else
 	{
@@ -352,9 +353,11 @@ void setShaderProperties()
 {
 	glUseProgram(ModelProgram);
 	glUniform3f(diffuseColLoc, DiffuseColor.x, DiffuseColor.y, DiffuseColor.z);
-	glUniform3f(viewDirLoc, ViewDir.x, ViewDir.y, ViewDir.z);
+	glm::vec3 viewSpaceVec = glm::vec3(view * glm::vec4(ViewDir, 0.0f));
+	glUniform3f(viewDirLoc, viewSpaceVec.x, viewSpaceVec.y, viewSpaceVec.z);
 	LightDir = glm::normalize(LightPos);
-	glUniform3f(lightDirLoc, LightDir.x, LightDir.y, LightDir.z);
+	viewSpaceVec = glm::vec3(view * glm::vec4(LightDir, 0.0f));
+	glUniform3f(lightDirLoc, viewSpaceVec.x, viewSpaceVec.y, viewSpaceVec.z);
 	glUniform1f(lightIntensityLoc, LightIntensity);
 	glUniform1f(ambientIntensityLoc, AmbientIntensity);
 	glUniform1f(shininessLoc, Shininess);
@@ -383,7 +386,7 @@ void mouseInputTransformations(GLFWwindow* window)
 	{
 		if (isCtrlHeld)
 		{
-			vectorRotationMatrix = glm::rotate(glm::mat4(1.0), (float)deltaMousePos.x * 0.01f, glm::vec3(0.0f, 1.0f, 0.0f));
+			vectorRotationMatrix = glm::rotate(glm::mat4(1.0), (float)deltaMousePos.x * -0.01f, glm::vec3(0.0f, 1.0f, 0.0f));
 			LightPos = glm::vec3((vectorRotationMatrix * glm::vec4(LightPos,1.0f)));
 			LightDir = glm::normalize(LightPos);
 		}
@@ -391,12 +394,13 @@ void mouseInputTransformations(GLFWwindow* window)
 		{
 			vectorRotationMatrix = glm::rotate(glm::mat4(1.0), (float)deltaMousePos.x * -0.01f, glm::vec3(0.0f, 1.0f, 0.0f));
 			ViewDir = glm::vec3((vectorRotationMatrix * glm::vec4(ViewDir, 0.0f)));
-			//model= glm::rotate(model, (float)deltaMousePos.x * 0.01f, glm::vec3(0.0f, 0.0f, 1.0f));
+			vectorRotationMatrix = glm::rotate(glm::mat4(1.0), (float)deltaMousePos.y * 0.01f, glm::vec3(1.0f, 0.0f, 0.0f));
+			ViewDir = glm::vec3((vectorRotationMatrix * glm::vec4(ViewDir, 0.0f)));
 		}
 	}
 	prevMousePos = curMousePos;
-	setShaderProperties();
 	updateMVP();
+	setShaderProperties();
 }
 
 void processMesh()
