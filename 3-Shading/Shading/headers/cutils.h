@@ -1,5 +1,6 @@
 #ifndef CUTILS_H
-	
+#define CUTILS_H
+
 #include<stdlib.h>
 #include<fstream>
 class Color

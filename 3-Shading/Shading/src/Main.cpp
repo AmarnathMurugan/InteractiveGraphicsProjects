@@ -6,7 +6,7 @@
 #include<glm/gtc/matrix_transform.hpp>
 #include "headers/cutils.h"
 #include <map>
-
+#include <chrono>
 //OpenGL callbacks
 void inputCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
 void mouseInputCallback(GLFWwindow* window, int key, int action, int mods);
@@ -94,21 +94,14 @@ int main(int argc, char* argv[])
 	if (ModelProgram == -1) return -1;
 	compileShaders("UnlitVert.glsl", "UnlitFrag.glsl", LightProgram);
 
-	//glUseProgram(ModelProgram);	
-
-
-
 	setUniformLocations();
 
 	//Set MVP matrix
 	initMVP();
+	setShaderProperties();	
 
-	setShaderProperties();
-	
-	//Set buffers
-	
+	//Set buffers	
 	initModelBuffer();
-
 	initOctahedronBuffer();
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -393,8 +386,8 @@ void mouseInputTransformations(GLFWwindow* window)
 		else
 		{			
 			ViewDir = glm::vec3((vectorRotationMatrix * glm::vec4(ViewDir, 0.0f)));
-			/*vectorRotationMatrix = glm::rotate(glm::mat4(1.0), (float)deltaMousePos.y * 0.01f, glm::vec3(1.0f, 0.0f, 0.0f));
-			ViewDir = glm::vec3((vectorRotationMatrix * glm::vec4(ViewDir, 0.0f)));*/
+			vectorRotationMatrix = glm::rotate(glm::mat4(1.0), (float)deltaMousePos.y * 0.01f, glm::vec3(1.0f, 0.0f, 0.0f));
+			ViewDir = glm::vec3((vectorRotationMatrix * glm::vec4(ViewDir, 0.0f)));
 		}
 	}
 	prevMousePos = curMousePos;
@@ -411,51 +404,44 @@ void processMesh()
 		Center = glm::vec3(center.x, center.y, center.z);
 	}
 
-	std::map<int, int> faceMap;
-	std::map<std::pair<int, int>, int> modifiedVertMap;
-	glm::vec3 tempPos, tempNorm;
-	for (int i = 0; i < meshData.NV(); i++)
-	{
-		tempPos = glm::vec3(meshData.V(i).x, meshData.V(i).y, meshData.V(i).z);
-		tempNorm = glm::vec3(meshData.VN(i).x, meshData.VN(i).y, meshData.VN(i).z);
-		data.push_back(Vertdata{ tempPos, tempNorm });
-	}
-
-	//Duplicate vertices to avoid conflicts 
-	int pos = 0;
+	data.resize((int)(meshData.NV() * 1.1));
+	int size = meshData.NV();
 	for (int i = 0; i < meshData.NF(); i++)
 	{
 		for (int j = 0; j < 3; j++)
 		{
-			if (faceMap.count(meshData.F(i).v[j]) == 0)
+			int vert = meshData.F(i).v[j];
+			int norm = meshData.FN(i).v[j];
+			glm::vec3 curNormal = glm::vec3(meshData.VN(norm).x, meshData.VN(norm).y, meshData.VN(norm).z);
+			//if unassigned
+			if (data[vert].position == glm::vec3() && data[vert].normal == glm::vec3())
 			{
-				faceMap.emplace(meshData.F(i).v[j], meshData.FN(i).v[j]);
-				pos = meshData.FN(i).v[j];
-				data[meshData.F(i).v[j]].normal = glm::vec3(meshData.VN(pos).x, meshData.VN(pos).y, meshData.VN(pos).z);
+				data[vert].position = glm::vec3(meshData.V(vert).x, meshData.V(vert).y, meshData.V(vert).z);
+				data[vert].normal = curNormal;
 			}
-			else if (faceMap.at(meshData.F(i).v[j]) != meshData.FN(i).v[j])
+			else if(data[vert].normal != curNormal)
 			{
-				if (modifiedVertMap.count(std::make_pair(meshData.F(i).v[j], meshData.FN(i).v[j])) > 0)
+				bool isDealtWith = false;
+				if (size > meshData.NV()) //Check in duplicates
 				{
-					meshData.F(i).v[j] = modifiedVertMap.at(std::make_pair(meshData.F(i).v[j], meshData.FN(i).v[j]));
+					for (int k = meshData.NV()-1; k < size; k++)					
+						if (data[vert].normal == data[k].normal && data[vert].position == data[k].position)
+						{
+							meshData.F(i).v[j] = k;
+							isDealtWith = true;
+						}
 				}
-				else
+
+				if(!isDealtWith) //Create duplicate vertex
 				{
-					pos = meshData.F(i).v[j];
-					tempPos = glm::vec3(meshData.V(pos).x, meshData.V(pos).y, meshData.V(pos).z);
-
-					pos = meshData.FN(i).v[j];
-					tempNorm = glm::vec3(meshData.VN(pos).x, meshData.VN(pos).y, meshData.VN(pos).z);
-
-					data.push_back(Vertdata{ tempPos, tempNorm });
-					meshData.F(i).v[j] = data.size() - 1;
-
-					modifiedVertMap.emplace(std::make_pair(meshData.F(i).v[j], meshData.FN(i).v[j]), data.size() - 1);
-					faceMap.emplace(data.size() - 1, meshData.FN(i).v[j]);
+					data[size].position = glm::vec3(meshData.V(vert).x, meshData.V(vert).y, meshData.V(vert).z);
+					data[size].normal = curNormal;
+					meshData.F(i).v[j] = size;
+					size++;
 				}
 			}
 		}
-	}
+	}	
 }
 
 void initModelBuffer()
@@ -519,3 +505,12 @@ void initOctahedronBuffer()
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, (void*)0);
 }
+
+//int main(int argc, char* argv[])
+//{
+//	std::vector<Vertdata> test;
+//	test.resize(10);
+//	test[5] = Vertdata{ glm::vec3(1,2,3),glm::vec3(13,23,53) };
+//	std::cout << test[0].position.b;
+//	return 0;
+//}
