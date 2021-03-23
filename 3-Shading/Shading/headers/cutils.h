@@ -1,41 +1,20 @@
 #ifndef CUTILS_H
 #define CUTILS_H
 
+//---Custom utilities---
+
 #include<stdlib.h>
 #include<fstream>
-class Color
-{
-	public:
-		float values[3];
-		Color():values{ 0,0,0 } {}
-		inline float r() const { return values[0]; }
-		inline float g() const { return values[1]; }
-		inline float b() const { return values[2]; }
-};
-
+#include<glm/glm.hpp>
+#include<glm/gtc/matrix_transform.hpp>
 float rand01()
 {
-	
 	return (rand() % 10 + 1.0) / 10.0;
 }
 
 float lerp(float a, float b, float t)
 {
 	return t * b + (1 - t) * a;
-}
-
-Color GetRandomColor()
-{
-	Color c;
-	for (int i = 0; i < 3; i++)
-		c.values[i] = rand01();
-	return c;
-}
-
-void lerpColor(const Color& a, const Color& b,const float& t, Color& target)
-{
-	for (int i = 0; i < 3; i++)
-		target.values[i] = lerp(a.values[i],b.values[i],t);
 }
 
 std::string GetStringFromFile(const char* name)
@@ -57,10 +36,13 @@ std::string GetStringFromFile(const char* name)
 	return content;
 }
 
+glm::vec3 UpAxis(0.0f, 1.0f, 0.0f), RightAxis(1.0f, 0.0f, 0.0f);
+
 struct Vertdata
 {
 	glm::vec3 position, normal;
 };
+
 
 #endif // !CUTILS_H
 
