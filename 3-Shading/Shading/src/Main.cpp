@@ -2,11 +2,10 @@
 #include<glad/glad.h>
 #include<GLFW/glfw3.h>
 #include<cy/cyTriMesh.h>
-#include<glm/glm.hpp>
-#include<glm/gtc/matrix_transform.hpp>
-#include "headers/cutils.h"
 #include <map>
 #include <chrono>
+
+#include "headers/cutils.h"
 //OpenGL callbacks
 void inputCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
 void mouseInputCallback(GLFWwindow* window, int key, int action, int mods);
@@ -29,13 +28,13 @@ glm::mat4 persProjection, orthoProjection, model, view, mvp, mv, vectorRotationM
 glm::mat3 mvNormal;
 glm::dvec2 prevMousePos, curMousePos, deltaMousePos;
 glm::vec2 CamDistLimit(0.5f, 5.0f);
-glm::vec3 UpAxis(0.0f, 1.0f, 0.0f), RightAxis(1.0f, 0.0f, 0.0f), Center;
+glm::vec3 Center;
 
 cy::TriMesh meshData;
 std::vector<Vertdata> data;
 
 //Material properties
-glm::vec3 LightPos(0.0f, 1.5f, 0.0f), LightDir, ViewDir(0,3,-3), DiffuseColor(0.2f, 0.8f, 0.7f);
+glm::vec3 LightPos(0.0f, 1.5f, 0.0f), ViewDir(0,3,-3), DiffuseColor(0.2f, 0.8f, 0.7f);
 float LightIntensity = 1.0f, AmbientIntensity = 0.1f, Shininess = 50.0f;
 
 bool isPerspective=true, isLeftMouseHeld = false, isRightMouseHeld = false, isCtrlHeld = false, isRecompile=false;
@@ -124,8 +123,9 @@ int main(int argc, char* argv[])
 			glDeleteProgram(ModelProgram);
 			compileShaders("BlinnVert.glsl", "BlinnFrag.glsl", ModelProgram);
 			glUseProgram(ModelProgram);
-			mvpLoc = glGetUniformLocation(ModelProgram, "MVP");
-			glUniformMatrix4fv(mvpLoc, 1, GL_FALSE, &mvp[0][0]);
+			setUniformLocations();
+			updateMVP();
+			setShaderProperties();
 			isRecompile = false;			
 		}
 		else
@@ -178,13 +178,6 @@ void inputCallback(GLFWwindow* window, int key, int scancode, int action, int mo
 
 	if (key == GLFW_KEY_F6 && action == GLFW_PRESS)
 		isRecompile = true;
-
-	if (key == GLFW_KEY_C && action == GLFW_PRESS)
-	{
-		std::cout << "\nLight Dir:" << LightDir.x << "," << LightDir.y << "," << LightDir.z;
-		std::cout << "\nView Dir:" << ViewDir.x << "," << ViewDir.y << "," << ViewDir.z;
-		std::cout<<"\nDot:"<<glm::dot(UpAxis, LightDir);
-	}
 }
 
 void mouseInputCallback(GLFWwindow* window, int key, int action, int mods)
@@ -348,8 +341,7 @@ void setShaderProperties()
 	glUniform3f(diffuseColLoc, DiffuseColor.x, DiffuseColor.y, DiffuseColor.z);
 	glm::vec3 viewSpaceVec = glm::vec3(view * glm::vec4(ViewDir, 0.0f));
 	glUniform3f(viewDirLoc, viewSpaceVec.x, viewSpaceVec.y, viewSpaceVec.z);
-	LightDir = glm::normalize(LightPos);
-	viewSpaceVec = glm::vec3(view * glm::vec4(LightDir, 0.0f));
+	viewSpaceVec = glm::vec3(view * glm::vec4(glm::normalize(LightPos), 0.0f));
 	glUniform3f(lightDirLoc, viewSpaceVec.x, viewSpaceVec.y, viewSpaceVec.z);
 	glUniform1f(lightIntensityLoc, LightIntensity);
 	glUniform1f(ambientIntensityLoc, AmbientIntensity);
@@ -366,7 +358,6 @@ void mouseInputTransformations(GLFWwindow* window)
 		{
 			vectorRotationMatrix = glm::rotate(glm::mat4(1.0), (float)deltaMousePos.y * 0.01f, glm::vec3(1.0f, 0.0f, 0.0f));		
 			LightPos = glm::vec3((vectorRotationMatrix * glm::vec4(LightPos, 1.0f)));
-			LightDir = glm::normalize(LightPos);
 		}
 		else
 		{
@@ -381,7 +372,6 @@ void mouseInputTransformations(GLFWwindow* window)
 		if (isCtrlHeld)
 		{
 			LightPos = glm::vec3((vectorRotationMatrix * glm::vec4(LightPos,1.0f)));
-			LightDir = glm::normalize(LightPos);
 		}
 		else
 		{			
@@ -505,12 +495,3 @@ void initOctahedronBuffer()
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, (void*)0);
 }
-
-//int main(int argc, char* argv[])
-//{
-//	std::vector<Vertdata> test;
-//	test.resize(10);
-//	test[5] = Vertdata{ glm::vec3(1,2,3),glm::vec3(13,23,53) };
-//	std::cout << test[0].position.b;
-//	return 0;
-//}
