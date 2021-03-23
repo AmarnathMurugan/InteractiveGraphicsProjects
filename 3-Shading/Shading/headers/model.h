@@ -11,20 +11,23 @@
 
 class Model
 {
-public:
-	unsigned int vao, vbo, ebo, program;
+	public:
+		//---Variables---
+		unsigned int vao, vbo, ebo, program;
+		glm::mat4 model;
+		std::string Shader;
 
-	Model(std::string vertShdrName, std::string fragShdrName);
+		//---Functions---
+		void compileShaders(std::string vertShdrName, std::string fragShdrName);
 	
-	void compileShaders(std::string vertShdrName, std::string fragShdrName);
-
-
+		virtual void initMVP() = 0;
+		virtual void updateMVP() = 0;
+		virtual void initMaterial() = 0;
+		virtual void updateMaterial() = 0;
+		virtual void SetBuffers() = 0;
+		virtual void Draw() const = 0;
 };
 
-Model::Model(std::string vertShdrName, std::string fragShdrName)
-{
-	compileShaders(vertShdrName, fragShdrName);
-}
 
 void Model::compileShaders(std::string vertShdrName, std::string fragShdrName)
 {
