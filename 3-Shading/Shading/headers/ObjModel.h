@@ -17,9 +17,9 @@ public:
 	glm::vec3 Center;
 	std::vector<Vertdata> processedData;
 
-	GLuint mvpLoc, mvLoc, lightDirLoc, viewDirLoc;
+	GLuint mvLoc, lightDirLoc, viewDirLoc;
 	GLuint diffuseColLoc, lightIntensityLoc, ambientIntensityLoc, shininessLoc;
-	glm::mat4 mv, mvp;
+	glm::mat4 mv;
 	glm::mat3 mvNormal;
 	glm::vec3 DiffuseColor;
 	float Shininess;
@@ -48,10 +48,11 @@ ObjModel::ObjModel(std::string pth, std::string shdr, float _shininess)
 		return;
 	}
 	processMesh();
-	compileShaders(Shader + "Vert", Shader + "Frag");
+	compileShaders(Shader + "Vert.glsl", Shader + "Frag.glsl");
 	initMaterial();
 	initMVP();
 	updateMaterial();
+	SetBuffers();
 }
 
 void ObjModel::processMesh()
@@ -118,15 +119,16 @@ void ObjModel::initMaterial()
 void ObjModel::initMVP()
 {	
 	//Scale model to make height 1, rotate to make it upright and center model to origin
-	model = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f / (meshData.GetBoundMax().y - meshData.GetBoundMin().y)));
-	model = glm::rotate(model, glm::radians(-90.0f), RightAxis);
-	model = glm::translate(model, glm::vec3(0.0, 0.0, -0.5f * (meshData.GetBoundMax().z - meshData.GetBoundMin().z)));
+	modelMat = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f / (meshData.GetBoundMax().y - meshData.GetBoundMin().y)));
+	modelMat = glm::rotate(modelMat, glm::radians(-90.0f), RightAxis);
+	modelMat = glm::translate(modelMat, glm::vec3(0.0, 0.0, -0.5f * (meshData.GetBoundMax().z - meshData.GetBoundMin().z)));
 	updateMVP();
 }
 
 void ObjModel::updateMVP()
 {
-	mv = view * model;
+	glUseProgram(program);
+	mv = view * modelMat;
 	mvp = persProjection * mv;
 	//Set values in shader
 	glUniformMatrix4fv(mvpLoc, 1, GL_FALSE, &mvp[0][0]);

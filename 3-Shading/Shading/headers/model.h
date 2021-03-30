@@ -14,7 +14,8 @@ class Model
 	public:
 		//---Variables---
 		unsigned int vao, vbo, ebo, program;
-		glm::mat4 model;
+		GLuint mvpLoc;
+		glm::mat4 modelMat, mvp;
 		std::string Shader;
 
 		//---Functions---
@@ -26,6 +27,8 @@ class Model
 		virtual void updateMaterial() = 0;
 		virtual void SetBuffers() = 0;
 		virtual void Draw() const = 0;
+
+		~Model();
 };
 
 
@@ -43,7 +46,7 @@ void Model::compileShaders(std::string vertShdrName, std::string fragShdrName)
 	glGetShaderiv(vertShader, GL_COMPILE_STATUS, &success);
 	if (!success)
 	{
-		std::cout << "Vert compilation failed";
+		std::cout <<Shader<< "Vert compilation failed";
 		return;
 	}
 
@@ -75,6 +78,14 @@ void Model::compileShaders(std::string vertShdrName, std::string fragShdrName)
 	std::cout << "Shader Compilation Complete \n";
 	glDeleteShader(vertShader);
 	glDeleteShader(fragShader);
+}
+
+Model::~Model()
+{
+	glDeleteVertexArrays(1, &vao);
+	glDeleteBuffers(1, &vbo);
+	glDeleteBuffers(1, &ebo);
+	glDeleteProgram(program);
 }
 
 #endif // !MODEL_H

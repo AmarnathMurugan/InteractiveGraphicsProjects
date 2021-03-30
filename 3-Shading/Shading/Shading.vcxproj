@@ -165,6 +165,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="headers\cutils.h" />
+    <ClInclude Include="headers\model.h" />
+    <ClInclude Include="headers\ObjModel.h" />
+    <ClInclude Include="headers\ProceduralModel.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="src\BlinnFrag.glsl">
