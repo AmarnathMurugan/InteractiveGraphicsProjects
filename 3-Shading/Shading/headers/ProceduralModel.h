@@ -32,20 +32,20 @@ ProceduralModel::ProceduralModel(float* _vertPos, int _vertPosArrSize, unsigned 
 	scale = glm::vec3(_scale);
 	position = pos;
 	compileShaders(Shader + "Vert.glsl", Shader + "Frag.glsl");
+	initMaterial();
 	initMVP();
 	SetBuffers();
 }
 
 void ProceduralModel::initMVP()
-{
-	mvpLoc = glGetUniformLocation(program, "MVP");
+{	
+	modelMat = glm::scale(glm::mat4(1.0f), scale);
 	updateMVP();
 }
 
 void ProceduralModel::updateMVP()
 {
-	glUseProgram(program);
-	modelMat = glm::scale(glm::mat4(1.0f), scale);
+	glUseProgram(program);	
 	modelMat = glm::translate(modelMat, position / scale);
 	mvp = persProjection * view * modelMat;
 	glUniformMatrix4fv(mvpLoc, 1, GL_FALSE, &mvp[0][0]);
@@ -77,7 +77,7 @@ void ProceduralModel::Draw() const
 
 void ProceduralModel::initMaterial()
 {
-	return; 
+	mvpLoc = glGetUniformLocation(program, "MVP");
 }
 
 void ProceduralModel::updateMaterial()

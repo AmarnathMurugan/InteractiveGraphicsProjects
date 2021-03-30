@@ -47,6 +47,7 @@ ObjModel::ObjModel(std::string pth, std::string shdr, float _shininess)
 		std::cout << "obj loading failed";
 		return;
 	}
+	std::cout << "obj loading complete \n";
 	processMesh();
 	compileShaders(Shader + "Vert.glsl", Shader + "Frag.glsl");
 	initMaterial();
