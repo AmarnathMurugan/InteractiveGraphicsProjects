@@ -6,6 +6,9 @@
 #include <chrono>
 
 #include "headers/cutils.h"
+#include "headers/ProceduralModel.h"
+#include "headers/ObjModel.h"
+
 //OpenGL callbacks
 void inputCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
 void mouseInputCallback(GLFWwindow* window, int key, int action, int mods);
@@ -24,7 +27,7 @@ void mouseInputTransformations(GLFWwindow* window);
 unsigned int width = 960, height = 540;
 
 float yRot=0, xRot=0,yOffset=0,CamSpeed = 0.1f,camDist=0, lightScale = 0.2;
-glm::mat4 persProjection, orthoProjection, model, view, mvp, mv, vectorRotationMatrix(1.0f), lightModelMatrix,lightMVP;
+glm::mat4 persProjection, orthoProjection, model, view, mvp, mv, vectorRotationMatrix(1.0f);
 glm::mat3 mvNormal;
 glm::dvec2 prevMousePos, curMousePos, deltaMousePos;
 glm::vec2 CamDistLimit(0.5f, 5.0f);
@@ -39,13 +42,15 @@ float LightIntensity = 1.0f, AmbientIntensity = 0.1f, Shininess = 50.0f;
 
 bool isPerspective=true, isLeftMouseHeld = false, isRightMouseHeld = false, isCtrlHeld = false, isRecompile=false;
 
-GLuint mvpLoc, mvLoc, lightDirLoc, viewDirLoc, lightMvpLoc;
+GLuint mvpLoc, mvLoc, lightDirLoc, viewDirLoc;
 GLuint diffuseColLoc, lightIntensityLoc, ambientIntensityLoc, shininessLoc;
 
-GLuint lightVBO, lightVAO, lightEBO;
-GLuint modelVBO, modelVAO, modelEBO;
-GLuint ModelProgram, LightProgram;
 
+GLuint modelVBO, modelVAO, modelEBO;
+GLuint ModelProgram;
+
+std::shared_ptr<ProceduralModel> lightModel;
+std::shared_ptr<ObjModel> mainModel;
 int main(int argc, char* argv[])
 {
 		
@@ -91,7 +96,6 @@ int main(int argc, char* argv[])
 	//Set program
 	compileShaders("BlinnVert.glsl", "BlinnFrag.glsl",ModelProgram);
 	if (ModelProgram == -1) return -1;
-	compileShaders("UnlitVert.glsl", "UnlitFrag.glsl", LightProgram);
 
 	setUniformLocations();
 
@@ -100,7 +104,7 @@ int main(int argc, char* argv[])
 	setShaderProperties();	
 
 	//Set buffers	
-	initModelBuffer();
+	initModelBuffer();	
 	initOctahedronBuffer();
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -114,9 +118,7 @@ int main(int argc, char* argv[])
 
 		if (isRightMouseHeld || isLeftMouseHeld) mouseInputTransformations(window);
 		
-		glUseProgram(LightProgram);
-		glBindVertexArray(lightVAO);
-		glDrawElements(GL_TRIANGLES, 24, GL_UNSIGNED_INT, 0);
+		lightModel->Draw();
 
 		if (isRecompile)
 		{
@@ -144,11 +146,6 @@ int main(int argc, char* argv[])
 	glDeleteBuffers(1, &modelVBO);
 	glDeleteBuffers(1, &modelEBO);
 	glDeleteProgram(ModelProgram);
-
-	glDeleteVertexArrays(1, &lightVAO);
-	glDeleteBuffers(1, &lightVBO);
-	glDeleteBuffers(1, &lightEBO);
-	glDeleteProgram(LightProgram);
 
 	glfwTerminate();
 	return 0;
@@ -211,6 +208,7 @@ void framebufferResizeCallback(GLFWwindow* window, int w, int h)
 	width = w;
 	height = h;
 	updateMVP();
+	lightModel->updateMVP();
 }
 
 void compileShaders(std::string vertShdrName, std::string fragShdrName, GLuint& program)
@@ -271,7 +269,6 @@ void setUniformLocations()
 	lightIntensityLoc = glGetUniformLocation(ModelProgram, "lightIntensity");
 	ambientIntensityLoc = glGetUniformLocation(ModelProgram, "ambientIntensity");
 	shininessLoc = glGetUniformLocation(ModelProgram, "shininess");
-	lightMvpLoc = glGetUniformLocation(LightProgram, "MVP");
 }
 
 void initMVP()
@@ -288,18 +285,11 @@ void initMVP()
 	mv =  view * model;
 	mvp = persProjection * mv;
 
-	//Set values in shader	
-	
+	//Set values in shader		
 	glUniformMatrix4fv(mvpLoc, 1, GL_FALSE, &mvp[0][0]);
 	mvNormal = glm::transpose(glm::inverse(glm::mat3(mv)));
 	glUniformMatrix3fv(mvLoc, 1, GL_FALSE, &mvNormal[0][0]);
 
-	//Light mvp
-	glUseProgram(LightProgram);
-	lightModelMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(lightScale));
-	lightModelMatrix = glm::translate(lightModelMatrix, LightPos/lightScale);
-	lightMVP = persProjection * view * lightModelMatrix;
-	glUniformMatrix4fv(lightMvpLoc, 1, GL_FALSE, &lightMVP[0][0]);
 }
 
 void updateMVP()
@@ -326,13 +316,6 @@ void updateMVP()
 	glUniformMatrix4fv(mvpLoc, 1, GL_FALSE, &mvp[0][0]);
 	mvNormal = glm::transpose(glm::inverse(glm::mat3(mv)));
 	glUniformMatrix3fv(mvLoc, 1, GL_FALSE, &mvNormal[0][0]);
-
-	//Light mvp
-	glUseProgram(LightProgram);
-	lightModelMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(lightScale));
-	lightModelMatrix = glm::translate(lightModelMatrix, LightPos/lightScale);
-	lightMVP = persProjection * view * lightModelMatrix;
-	glUniformMatrix4fv(lightMvpLoc, 1, GL_FALSE, &lightMVP[0][0]);	
 }
 
 void setShaderProperties()
@@ -357,7 +340,7 @@ void mouseInputTransformations(GLFWwindow* window)
 		if (isCtrlHeld)
 		{
 			vectorRotationMatrix = glm::rotate(glm::mat4(1.0), (float)deltaMousePos.y * 0.01f, glm::vec3(1.0f, 0.0f, 0.0f));		
-			LightPos = glm::vec3((vectorRotationMatrix * glm::vec4(LightPos, 1.0f)));
+			LightPos = glm::vec3((vectorRotationMatrix * glm::vec4(LightPos, 1.0f)));			
 		}
 		else
 		{
@@ -382,6 +365,8 @@ void mouseInputTransformations(GLFWwindow* window)
 	}
 	prevMousePos = curMousePos;
 	updateMVP();
+	lightModel->position = LightPos;
+	lightModel->updateMVP();
 	setShaderProperties();
 }
 
@@ -480,8 +465,9 @@ void initOctahedronBuffer()
 		5,3,2
 	};
 
+	lightModel = std::make_unique<ProceduralModel>(TetraPos, sizeof(TetraPos), TetraElems, sizeof(TetraElems), "Unlit", LightPos, lightScale);
 	
-	glGenVertexArrays(1, &lightVAO);
+	/*glGenVertexArrays(1, &lightVAO);
 	glBindVertexArray(lightVAO);
 
 	glGenBuffers(1, &lightVBO);
@@ -493,5 +479,5 @@ void initOctahedronBuffer()
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(TetraElems), TetraElems, GL_STATIC_DRAW);
 
 	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, (void*)0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, (void*)0);*/
 }
