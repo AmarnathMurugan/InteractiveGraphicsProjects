@@ -38,7 +38,10 @@ std::string GetStringFromFile(const char* name)
 
 glm::vec3 UpAxis(0.0f, 1.0f, 0.0f), RightAxis(1.0f, 0.0f, 0.0f);
 
-
+struct Vertdata
+{
+	glm::vec3 position, normal;
+};
 
 
 #endif // !CUTILS_H

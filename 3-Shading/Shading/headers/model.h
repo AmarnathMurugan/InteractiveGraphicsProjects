@@ -9,11 +9,6 @@
 #include <string>
 #include "headers/cutils.h"
 
-struct Vertdata
-{
-	glm::vec3 position, normal, uv;
-};
-
 class Model
 {
 	public:
