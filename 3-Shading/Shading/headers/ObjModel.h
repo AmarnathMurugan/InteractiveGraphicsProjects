@@ -130,9 +130,9 @@ void ObjModel::updateMVP()
 	glUseProgram(program);
 	mv = view * modelMat;
 	mvp = persProjection * mv;
+	mvNormal = glm::transpose(glm::inverse(glm::mat3(mv)));
 	//Set values in shader
 	glUniformMatrix4fv(mvpLoc, 1, GL_FALSE, &mvp[0][0]);
-	mvNormal = glm::transpose(glm::inverse(glm::mat3(mv)));
 	glUniformMatrix3fv(mvLoc, 1, GL_FALSE, &mvNormal[0][0]);
 }
 

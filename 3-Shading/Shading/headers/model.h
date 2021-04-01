@@ -20,14 +20,15 @@ class Model
 
 		//---Functions---
 		void compileShaders(std::string vertShdrName, std::string fragShdrName);
-	
+		void RecompileShaders();
+
 		virtual void initMVP() = 0;
 		virtual void updateMVP() = 0;
 		virtual void initMaterial() = 0;
 		virtual void updateMaterial() = 0;
 		virtual void SetBuffers() = 0;
 		virtual void Draw() const = 0;
-
+		
 		~Model();
 };
 
@@ -78,6 +79,17 @@ void Model::compileShaders(std::string vertShdrName, std::string fragShdrName)
 	std::cout << "Shader Compilation Complete \n";
 	glDeleteShader(vertShader);
 	glDeleteShader(fragShader);
+}
+
+void Model::RecompileShaders()
+{
+	glDeleteProgram(program);
+	compileShaders(Shader + "Vert.glsl", Shader + "Frag.glsl");
+	glUseProgram(program);
+	initMaterial();
+	updateMVP();
+	updateMaterial();
+	std::cout << "Shader recompile done";
 }
 
 Model::~Model()
