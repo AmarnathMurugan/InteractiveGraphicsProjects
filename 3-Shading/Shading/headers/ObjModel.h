@@ -14,18 +14,17 @@ public:
 	//---Variables---
 	std::string ObjPath;
 	cy::TriMesh meshData;
-	glm::vec3 Center;
+	glm::vec3 Center, DiffuseColor;
 	std::vector<Vertdata> processedData;
 
 	GLuint mvLoc, lightDirLoc, viewDirLoc;
 	GLuint diffuseColLoc, lightIntensityLoc, ambientIntensityLoc, shininessLoc;
 	glm::mat4 mv;
 	glm::mat3 mvNormal;
-	glm::vec3 DiffuseColor;
 	float Shininess;
 
 	//---Functions---
-	ObjModel(std::string pth, std::string shdr, float _shininess);
+	ObjModel(std::string pth, std::string shdr, glm::vec3 diff, float _shininess);
 	void processMesh();
 
 	virtual void initMaterial();
@@ -36,11 +35,12 @@ public:
 	virtual void Draw() const;
 };
 
-ObjModel::ObjModel(std::string pth, std::string shdr, float _shininess)
+ObjModel::ObjModel(std::string pth, std::string shdr, glm::vec3 diff, float _shininess)
 {
 	ObjPath = pth;
 	Shader = shdr;
 	Shininess = _shininess;
+	DiffuseColor = diff;
 
 	if (!meshData.LoadFromFileObj(ObjPath.c_str(), false))
 	{
@@ -177,8 +177,6 @@ void ObjModel::Draw() const
 	glUseProgram(program);
 	glBindVertexArray(vao);
 	glDrawElements(GL_TRIANGLES, meshData.NF() * 3, GL_UNSIGNED_INT, 0);
-	glBindVertexArray(0);
-	glUseProgram(0);
 }
 #endif // !OBJMODEL_H
 
