@@ -49,6 +49,7 @@ GLuint diffuseColLoc, lightIntensityLoc, ambientIntensityLoc, shininessLoc;
 GLuint modelVBO, modelVAO, modelEBO;
 GLuint ModelProgram;
 
+std::vector<std::shared_ptr<Model>> World;
 std::shared_ptr<ProceduralModel> lightModel;
 std::shared_ptr<ObjModel> mainModel;
 int main(int argc, char* argv[])
@@ -106,7 +107,7 @@ int main(int argc, char* argv[])
 	//Set buffers	
 	initModelBuffer();	
 	initOctahedronBuffer();
-
+	mainModel = std::make_shared<ObjModel>(argv[1], "Blinn", glm::vec3(0.2f, 0.8f, 0.7f), Shininess);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
 
@@ -119,8 +120,8 @@ int main(int argc, char* argv[])
 		if (isRightMouseHeld || isLeftMouseHeld) mouseInputTransformations(window);
 		
 		lightModel->Draw();
-
-		if (isRecompile)
+		mainModel->Draw();
+		/*if (isRecompile)
 		{
 			glDeleteProgram(ModelProgram);
 			compileShaders("BlinnVert.glsl", "BlinnFrag.glsl", ModelProgram);
@@ -131,10 +132,10 @@ int main(int argc, char* argv[])
 			isRecompile = false;			
 		}
 		else
-			glUseProgram(ModelProgram);
+			glUseProgram(ModelProgram);*/
 		
-		glBindVertexArray(modelVAO);
-		glDrawElements(GL_TRIANGLES, meshData.NF()*3, GL_UNSIGNED_INT, 0);
+		/*glBindVertexArray(modelVAO);
+		glDrawElements(GL_TRIANGLES, meshData.NF()*3, GL_UNSIGNED_INT, 0);*/
 
 		
 
@@ -209,6 +210,7 @@ void framebufferResizeCallback(GLFWwindow* window, int w, int h)
 	height = h;
 	updateMVP();
 	lightModel->updateMVP();
+	mainModel->updateMVP();
 }
 
 void compileShaders(std::string vertShdrName, std::string fragShdrName, GLuint& program)
@@ -367,7 +369,9 @@ void mouseInputTransformations(GLFWwindow* window)
 	updateMVP();
 	lightModel->position = LightPos;
 	lightModel->updateMVP();
+	mainModel->updateMVP();
 	setShaderProperties();
+	mainModel->updateMaterial();
 }
 
 void processMesh()
