@@ -84,30 +84,15 @@ int main(int argc, char* argv[])
 	glfwSetKeyCallback(window, inputCallback);
 	glEnable(GL_DEPTH_TEST);
 
-	//Load model	
-	if (!meshData.LoadFromFileObj(argv[1], false))
-	{
-		std::cout << "obj loading failed";
-		return -1;
-	}	
-	std::cout << "obj loading complete \n";		
 	
-	processMesh();
-	
-	//Set program
-	compileShaders("BlinnVert.glsl", "BlinnFrag.glsl",ModelProgram);
-	if (ModelProgram == -1) return -1;
-
-	setUniformLocations();
 
 	//Set MVP matrix
 	initMVP();
-	setShaderProperties();	
 
-	//Set buffers	
-	initModelBuffer();	
+	
 	initOctahedronBuffer();
-	mainModel = std::make_shared<ObjModel>(argv[1], "Blinn", glm::vec3(0.2f, 0.8f, 0.7f), Shininess);
+	World.emplace_back(std::make_shared<ObjModel>(argv[1], "Blinn", glm::vec3(0.2f, 0.8f, 0.7f), Shininess));
+
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
 
@@ -119,34 +104,21 @@ int main(int argc, char* argv[])
 
 		if (isRightMouseHeld || isLeftMouseHeld) mouseInputTransformations(window);
 		
-		lightModel->Draw();
-		mainModel->Draw();
-		/*if (isRecompile)
+		
+		if (isRecompile)
 		{
-			glDeleteProgram(ModelProgram);
-			compileShaders("BlinnVert.glsl", "BlinnFrag.glsl", ModelProgram);
-			glUseProgram(ModelProgram);
-			setUniformLocations();
-			updateMVP();
-			setShaderProperties();
+			for (int i = 0; i < World.size(); i++)
+				World[i]->RecompileShaders();
 			isRecompile = false;			
 		}
-		else
-			glUseProgram(ModelProgram);*/
 		
-		/*glBindVertexArray(modelVAO);
-		glDrawElements(GL_TRIANGLES, meshData.NF()*3, GL_UNSIGNED_INT, 0);*/
-
+		for (int i = 0; i < World.size(); i++)
+			World[i]->Draw();
 		
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
-
-	glDeleteVertexArrays(1, &modelVAO);
-	glDeleteBuffers(1, &modelVBO);
-	glDeleteBuffers(1, &modelEBO);
-	glDeleteProgram(ModelProgram);
 
 	glfwTerminate();
 	return 0;
@@ -208,90 +180,15 @@ void framebufferResizeCallback(GLFWwindow* window, int w, int h)
 	glViewport(0, 0, w, h);
 	width = w;
 	height = h;
-	updateMVP();
-	lightModel->updateMVP();
-	mainModel->updateMVP();
-}
-
-void compileShaders(std::string vertShdrName, std::string fragShdrName, GLuint& program)
-{
-	GLuint vertShader, fragShader;
-	//Read Vert Shader file and compile
-	std::string path = "src/";
-	std::string vertStr = GetStringFromFile((path+vertShdrName).c_str());
-	const char* vert = vertStr.c_str();
-	vertShader = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(vertShader, 1, &vert, NULL);
-	glCompileShader(vertShader);
-	int success;
-	glGetShaderiv(vertShader, GL_COMPILE_STATUS, &success);
-	if (!success)
-	{
-		std::cout << "Vert compilation failed";
-		return ;
-	}
-
-	//Read Frag Shader file and compile
-	std::string fragStr = GetStringFromFile((path + fragShdrName).c_str());
-	const char* frag = fragStr.c_str();
-	fragShader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(fragShader, 1, &frag, NULL);
-	glCompileShader(fragShader);
-	glGetShaderiv(fragShader, GL_COMPILE_STATUS, &success);
-	if (!success)
-	{
-		std::cout << "Frag compilation failed";
-		return ;
-	}
-	
-	//Create program and link 
-	program = glCreateProgram();
-	glAttachShader(program, vertShader);
-	glAttachShader(program, fragShader);
-	glLinkProgram(program);
-	glGetProgramiv(program, GL_LINK_STATUS, &success);
-	glGetProgramiv(program, GL_LINK_STATUS, &success);
-	char infoLog[512];
-	if (!success) {
-		glGetProgramInfoLog(program, 512, NULL, infoLog);
-		std::cout << "Linking Failed:" << infoLog << std::endl;
-	}
-	std::cout << "Shader Compilation Complete \n";
-	glDeleteShader(vertShader);
-	glDeleteShader(fragShader);	
-}
-
-void setUniformLocations()
-{
-	mvpLoc = glGetUniformLocation(ModelProgram, "MVP");
-	mvLoc = glGetUniformLocation(ModelProgram, "MV");
-	lightDirLoc = glGetUniformLocation(ModelProgram, "lightDir");
-	viewDirLoc = glGetUniformLocation(ModelProgram, "viewDir");
-	diffuseColLoc = glGetUniformLocation(ModelProgram, "diffuseCol");
-	lightIntensityLoc = glGetUniformLocation(ModelProgram, "lightIntensity");
-	ambientIntensityLoc = glGetUniformLocation(ModelProgram, "ambientIntensity");
-	shininessLoc = glGetUniformLocation(ModelProgram, "shininess");
+	updateMVP();	
 }
 
 void initMVP()
 {
-	glUseProgram(ModelProgram);
 	camDist = ViewDir.length();
 	ViewDir = glm::normalize(ViewDir);
 	persProjection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, 0.5f, 10.0f);
-	view = glm::lookAt(ViewDir*camDist, glm::vec3(0.0), UpAxis);
-	//Scale model to make height 1, rotate to make it upright and center model to origin
-	model = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f / (meshData.GetBoundMax().y - meshData.GetBoundMin().y)));
-	model = glm::rotate(model, glm::radians(-90.0f), RightAxis);
-	model = glm::translate(model,glm::vec3(0.0,0.0,-0.5f*(meshData.GetBoundMax().z-meshData.GetBoundMin().z)));
-	mv =  view * model;
-	mvp = persProjection * mv;
-
-	//Set values in shader		
-	glUniformMatrix4fv(mvpLoc, 1, GL_FALSE, &mvp[0][0]);
-	mvNormal = glm::transpose(glm::inverse(glm::mat3(mv)));
-	glUniformMatrix3fv(mvLoc, 1, GL_FALSE, &mvNormal[0][0]);
-
+	view = glm::lookAt(ViewDir*camDist, glm::vec3(0.0), UpAxis);	
 }
 
 void updateMVP()
@@ -304,33 +201,10 @@ void updateMVP()
 	{
 		float multiplier = 5.0f;
 		orthoProjection = glm::ortho(-multiplier * (float)width / (float)height, multiplier * (float)width / (float)height, -multiplier, multiplier, 0.1f, 10.0f);		
-		mv = view * model;
-		mvp = orthoProjection * view * model;
+		
 	}
-	else
-	{
-		mv = view * model;
-		mvp = persProjection * mv;
-	}
-	
-	//Set values in shader	
-	glUseProgram(ModelProgram);
-	glUniformMatrix4fv(mvpLoc, 1, GL_FALSE, &mvp[0][0]);
-	mvNormal = glm::transpose(glm::inverse(glm::mat3(mv)));
-	glUniformMatrix3fv(mvLoc, 1, GL_FALSE, &mvNormal[0][0]);
-}
-
-void setShaderProperties()
-{
-	glUseProgram(ModelProgram);
-	glUniform3f(diffuseColLoc, DiffuseColor.x, DiffuseColor.y, DiffuseColor.z);
-	glm::vec3 viewSpaceVec = glm::vec3(view * glm::vec4(ViewDir, 0.0f));
-	glUniform3f(viewDirLoc, viewSpaceVec.x, viewSpaceVec.y, viewSpaceVec.z);
-	viewSpaceVec = glm::vec3(view * glm::vec4(glm::normalize(LightPos), 0.0f));
-	glUniform3f(lightDirLoc, viewSpaceVec.x, viewSpaceVec.y, viewSpaceVec.z);
-	glUniform1f(lightIntensityLoc, LightIntensity);
-	glUniform1f(ambientIntensityLoc, AmbientIntensity);
-	glUniform1f(shininessLoc, Shininess);
+	for (int i = 0; i < World.size(); i++)
+		World[i]->updateMVP();
 }
 
 void mouseInputTransformations(GLFWwindow* window)
@@ -367,82 +241,8 @@ void mouseInputTransformations(GLFWwindow* window)
 	}
 	prevMousePos = curMousePos;
 	updateMVP();
-	lightModel->position = LightPos;
-	lightModel->updateMVP();
-	mainModel->updateMVP();
-	setShaderProperties();
-	mainModel->updateMaterial();
-}
-
-void processMesh()
-{
-	meshData.ComputeBoundingBox();
-	if (meshData.IsBoundBoxReady())
-	{
-		cy::Vec3f center = (meshData.GetBoundMin() + meshData.GetBoundMax()) / 2.0f;
-		Center = glm::vec3(center.x, center.y, center.z);
-	}
-
-	data.resize((int)(meshData.NV() * 1.1));
-	int size = meshData.NV();
-	for (int i = 0; i < meshData.NF(); i++)
-	{
-		for (int j = 0; j < 3; j++)
-		{
-			int vert = meshData.F(i).v[j];
-			int norm = meshData.FN(i).v[j];
-			glm::vec3 curNormal = glm::vec3(meshData.VN(norm).x, meshData.VN(norm).y, meshData.VN(norm).z);
-			//if unassigned
-			if (data[vert].position == glm::vec3() && data[vert].normal == glm::vec3())
-			{
-				data[vert].position = glm::vec3(meshData.V(vert).x, meshData.V(vert).y, meshData.V(vert).z);
-				data[vert].normal = curNormal;
-			}
-			else if(data[vert].normal != curNormal)
-			{
-				bool isDealtWith = false;
-				if (size > meshData.NV()) //Check in duplicates
-				{
-					for (int k = meshData.NV()-1; k < size; k++)					
-						if (data[vert].normal == data[k].normal && data[vert].position == data[k].position)
-						{
-							meshData.F(i).v[j] = k;
-							isDealtWith = true;
-						}
-				}
-
-				if(!isDealtWith) //Create duplicate vertex
-				{
-					data[size].position = glm::vec3(meshData.V(vert).x, meshData.V(vert).y, meshData.V(vert).z);
-					data[size].normal = curNormal;
-					meshData.F(i).v[j] = size;
-					size++;
-				}
-			}
-		}
-	}	
-}
-
-void initModelBuffer()
-{
-	glGenVertexArrays(1, &modelVAO);
-	glBindVertexArray(modelVAO);
-
-	glGenBuffers(1, &modelVBO);
-	glBindBuffer(GL_ARRAY_BUFFER, modelVBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(Vertdata) * data.size(), &data[0], GL_STATIC_DRAW);
-
-	glGenBuffers(1, &modelEBO);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, modelEBO);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cy::TriMesh::TriFace) * meshData.NF(), &meshData.F(0), GL_STATIC_DRAW);
-
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3) * 2, (void*)0);
-	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3) * 2, (void*)offsetof(Vertdata, normal));
-
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
+	for (int i = 0; i < World.size(); i++)
+		World[i]->updateMaterial();
 }
 
 void initOctahedronBuffer()
@@ -469,19 +269,5 @@ void initOctahedronBuffer()
 		5,3,2
 	};
 
-	lightModel = std::make_unique<ProceduralModel>(TetraPos, sizeof(TetraPos), TetraElems, sizeof(TetraElems), "Unlit", LightPos, lightScale);
-	
-	/*glGenVertexArrays(1, &lightVAO);
-	glBindVertexArray(lightVAO);
-
-	glGenBuffers(1, &lightVBO);
-	glBindBuffer(GL_ARRAY_BUFFER, lightVBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(TetraPos), TetraPos, GL_STATIC_DRAW);
-
-	glGenBuffers(1, &lightEBO);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, lightEBO);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(TetraElems), TetraElems, GL_STATIC_DRAW);
-
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, (void*)0);*/
+	World.emplace_back(std::make_unique<ProceduralModel>(TetraPos, sizeof(TetraPos), TetraElems, sizeof(TetraElems), "Unlit", lightScale));
 }
