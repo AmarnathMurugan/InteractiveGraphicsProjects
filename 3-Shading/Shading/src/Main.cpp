@@ -14,27 +14,18 @@ void inputCallback(GLFWwindow* window, int key, int scancode, int action, int mo
 void mouseInputCallback(GLFWwindow* window, int key, int action, int mods);
 void framebufferResizeCallback(GLFWwindow* window, int w, int h);
 
-void processMesh();
-void compileShaders(std::string vertShdrName, std::string fragShdrName,GLuint &program);
-void setUniformLocations();
+
 void initMVP();
 void updateMVP();
-void setShaderProperties();
-void initModelBuffer();
 void initOctahedronBuffer();
 void mouseInputTransformations(GLFWwindow* window);
 
 unsigned int width = 960, height = 540;
 
-float yRot=0, xRot=0,yOffset=0,CamSpeed = 0.1f,camDist=0, lightScale = 0.2;
-glm::mat4 persProjection, orthoProjection, model, view, mvp, mv, vectorRotationMatrix(1.0f);
-glm::mat3 mvNormal;
+float CamSpeed = 0.1f,camDist=0, lightScale = 0.2;
+glm::mat4 persProjection, orthoProjection, view, vectorRotationMatrix(1.0f);
 glm::dvec2 prevMousePos, curMousePos, deltaMousePos;
 glm::vec2 CamDistLimit(0.5f, 5.0f);
-glm::vec3 Center;
-
-cy::TriMesh meshData;
-std::vector<Vertdata> data;
 
 //Material properties
 glm::vec3 LightPos(0.0f, 1.5f, 0.0f), ViewDir(0,3,-3), DiffuseColor(0.2f, 0.8f, 0.7f);
@@ -42,19 +33,10 @@ float LightIntensity = 1.0f, AmbientIntensity = 0.1f, Shininess = 50.0f;
 
 bool isPerspective=true, isLeftMouseHeld = false, isRightMouseHeld = false, isCtrlHeld = false, isRecompile=false;
 
-GLuint mvpLoc, mvLoc, lightDirLoc, viewDirLoc;
-GLuint diffuseColLoc, lightIntensityLoc, ambientIntensityLoc, shininessLoc;
-
-
-GLuint modelVBO, modelVAO, modelEBO;
-GLuint ModelProgram;
-
 std::vector<std::shared_ptr<Model>> World;
-std::shared_ptr<ProceduralModel> lightModel;
-std::shared_ptr<ObjModel> mainModel;
+
 int main(int argc, char* argv[])
 {
-		
 	//Init GLFW and Versions
 	if (!glfwInit())	
 		return -1;
@@ -84,26 +66,17 @@ int main(int argc, char* argv[])
 	glfwSetKeyCallback(window, inputCallback);
 	glEnable(GL_DEPTH_TEST);
 
-	
-
-	//Set MVP matrix
 	initMVP();
-
 	
 	initOctahedronBuffer();
 	World.emplace_back(std::make_shared<ObjModel>(argv[1], "Blinn", glm::vec3(0.2f, 0.8f, 0.7f), Shininess));
-
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
-
 
 	while (!glfwWindowShouldClose(window))
 	{	
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		if (isRightMouseHeld || isLeftMouseHeld) mouseInputTransformations(window);
-		
+		if (isRightMouseHeld || isLeftMouseHeld) mouseInputTransformations(window);		
 		
 		if (isRecompile)
 		{
@@ -113,8 +86,7 @@ int main(int argc, char* argv[])
 		}
 		
 		for (int i = 0; i < World.size(); i++)
-			World[i]->Draw();
-		
+			World[i]->Draw();		
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
