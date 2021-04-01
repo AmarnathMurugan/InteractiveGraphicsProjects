@@ -4,16 +4,16 @@
 #include "model.h"
 
 extern glm::mat4 view, persProjection;
-
+extern glm::vec3 LightPos;
 class ProceduralModel : public Model
 {
 	public:
-		glm::vec3 position,scale;
+		glm::vec3 scale;
 		float *vertPos;
 		unsigned int* indices;
 		int vertPosArrSize, indicesArrSize;
 	public:
-		ProceduralModel(float* _vertPos, int _vertPosArrSize, unsigned int* _indices,int _indicesArrSize, std::string shdr, glm::vec3 pos, float _scale);
+		ProceduralModel(float* _vertPos, int _vertPosArrSize, unsigned int* _indices,int _indicesArrSize, std::string shdr, float _scale);
 		virtual void initMVP();
 		virtual void initMaterial();
 		virtual void updateMaterial();
@@ -22,7 +22,7 @@ class ProceduralModel : public Model
 		virtual void Draw() const;
 };
 
-ProceduralModel::ProceduralModel(float* _vertPos, int _vertPosArrSize, unsigned int* _indices, int _indicesArrSize, std::string shdr, glm::vec3 pos, float _scale)
+ProceduralModel::ProceduralModel(float* _vertPos, int _vertPosArrSize, unsigned int* _indices, int _indicesArrSize, std::string shdr, float _scale)
 {
 	vertPos = _vertPos;
 	vertPosArrSize = _vertPosArrSize;
@@ -30,24 +30,24 @@ ProceduralModel::ProceduralModel(float* _vertPos, int _vertPosArrSize, unsigned 
 	indicesArrSize = _indicesArrSize;
 	Shader = shdr;
 	scale = glm::vec3(_scale);
-	position = pos;
-	compileShaders(Shader + "Vert.glsl", Shader + "Frag.glsl");
+	compileShaders(Shader + "Vert.glsl", Shader + "Frag.glsl");	
+	initMaterial();
 	initMVP();
+	updateMaterial();
 	SetBuffers();
 }
 
 void ProceduralModel::initMVP()
-{
-	mvpLoc = glGetUniformLocation(program, "MVP");
+{	
 	updateMVP();
 }
 
 void ProceduralModel::updateMVP()
-{
-	glUseProgram(program);
+{		
 	modelMat = glm::scale(glm::mat4(1.0f), scale);
-	modelMat = glm::translate(modelMat, position / scale);
-	mvp = persProjection * view * modelMat;
+	modelMat = glm::translate(modelMat, LightPos / scale);
+	mvp = persProjection * view * modelMat;	
+	glUseProgram(program);
 	glUniformMatrix4fv(mvpLoc, 1, GL_FALSE, &mvp[0][0]);
 }
 
@@ -77,7 +77,7 @@ void ProceduralModel::Draw() const
 
 void ProceduralModel::initMaterial()
 {
-	return; 
+	mvpLoc = glGetUniformLocation(program, "MVP");
 }
 
 void ProceduralModel::updateMaterial()
