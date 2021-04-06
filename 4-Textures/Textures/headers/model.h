@@ -11,7 +11,7 @@
 
 struct Vertdata
 {
-	glm::vec3 position, normal;
+	glm::vec3 position, normal, uv;
 };
 
 class Model

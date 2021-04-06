@@ -1,5 +1,5 @@
 #version 330 core
-
+in vec3 frag_uv;
 in vec3 frag_normal;
 in vec3 frag_lightDir;
 in vec3 frag_viewDir;
@@ -23,5 +23,6 @@ void main()
 	//Ambient
 	curCol += frag_diffuseCol *frag_ambientIntensity;
 
-	FragCol = vec4(curCol, 1.0f);
+	//FragCol = vec4(curCol, 1.0f);
+	FragCol = vec4(frag_uv, 1.0f);
 }

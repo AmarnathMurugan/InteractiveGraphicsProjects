@@ -72,22 +72,26 @@ void ObjModel::processMesh()
 		{
 			int vert = meshData.F(i).v[j];
 			int norm = meshData.FN(i).v[j];
+			int uv = meshData.FT(i).v[j];
 			glm::vec3 curNormal = glm::vec3(meshData.VN(norm).x, meshData.VN(norm).y, meshData.VN(norm).z);
+			glm::vec3 curUV = glm::vec3(meshData.VT(uv).x, meshData.VT(uv).y, meshData.VT(uv).z);
 			//if unassigned
-			if (processedData[vert].position == glm::vec3() && processedData[vert].normal == glm::vec3())
+			if (processedData[vert].position == glm::vec3() && processedData[vert].normal == glm::vec3() && processedData[vert].uv == glm::vec3())
 			{
 				processedData[vert].position = glm::vec3(meshData.V(vert).x, meshData.V(vert).y, meshData.V(vert).z);
 				processedData[vert].normal = curNormal;
+				processedData[vert].uv = curUV;
 			}
-			else if (processedData[vert].normal != curNormal)
+			else if (processedData[vert].normal != curNormal && processedData[vert].uv != curUV)
 			{
 				bool isDealtWith = false;
 				if (size > meshData.NV()) //Check in duplicates
 				{
 					for (int k = meshData.NV() - 1; k < size; k++)
-						if (processedData[vert].normal == processedData[k].normal && processedData[vert].position == processedData[k].position)
+						if (processedData[vert].normal == processedData[k].normal && processedData[vert].position == processedData[k].position && processedData[vert].uv == processedData[k].uv)
 						{
 							meshData.F(i).v[j] = k;
+							meshData.FT(i).v[j] = k;
 							isDealtWith = true;
 						}
 				}
@@ -96,7 +100,9 @@ void ObjModel::processMesh()
 				{
 					processedData[size].position = glm::vec3(meshData.V(vert).x, meshData.V(vert).y, meshData.V(vert).z);
 					processedData[size].normal = curNormal;
+					processedData[size].uv = curUV;
 					meshData.F(i).v[j] = size;
+					meshData.FT(i).v[j] = size;
 					size++;
 				}
 			}
@@ -164,9 +170,13 @@ void ObjModel::SetBuffers()
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cy::TriMesh::TriFace) * meshData.NF(), &meshData.F(0), GL_STATIC_DRAW);
 
 	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3) * 2, (void*)0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertdata), (void*)0);
+
 	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3) * 2, (void*)offsetof(Vertdata, normal));
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertdata), (void*)offsetof(Vertdata, normal));
+
+	glEnableVertexAttribArray(2);
+	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertdata), (void*)offsetof(Vertdata, uv));
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
