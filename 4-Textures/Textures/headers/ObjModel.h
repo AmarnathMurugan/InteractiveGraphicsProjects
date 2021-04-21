@@ -21,7 +21,7 @@ public:
 	std::vector<unsigned char> imgBuffer, imgTex;	
 
 	GLuint mvLoc, lightDirLoc, viewDirLoc, texture;
-	GLuint diffuseColLoc, lightIntensityLoc, ambientIntensityLoc, shininessLoc;
+	GLuint diffuseColLoc, diffuseTexLoc, lightIntensityLoc, ambientIntensityLoc, shininessLoc;
 	glm::mat4 mv;
 	glm::mat3 mvNormal;
 	float Shininess;
@@ -125,6 +125,7 @@ void ObjModel::initMaterial()
 	lightDirLoc = glGetUniformLocation(program, "lightDir");
 	viewDirLoc = glGetUniformLocation(program, "viewDir");
 	diffuseColLoc = glGetUniformLocation(program, "diffuseCol");
+	diffuseTexLoc = glGetUniformLocation(program, "mainTex");
 	lightIntensityLoc = glGetUniformLocation(program, "lightIntensity");
 	ambientIntensityLoc = glGetUniformLocation(program, "ambientIntensity");
 	shininessLoc = glGetUniformLocation(program, "shininess");
@@ -174,6 +175,7 @@ void ObjModel::updateMaterial()
 {
 	glUseProgram(program);
 	glUniform3f(diffuseColLoc, DiffuseColor.x, DiffuseColor.y, DiffuseColor.z);
+	glUniform1i(diffuseTexLoc, 0);
 	glm::vec3 viewSpaceVec = glm::vec3(view * glm::vec4(ViewDir, 0.0f));
 	glUniform3f(viewDirLoc, viewSpaceVec.x, viewSpaceVec.y, viewSpaceVec.z);;
 	viewSpaceVec = glm::vec3(view * glm::vec4(glm::normalize(LightPos), 0.0f));
