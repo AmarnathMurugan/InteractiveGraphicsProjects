@@ -3,6 +3,7 @@
 
 #include<cy/cyTriMesh.h>
 #include "model.h"
+#include "picopng.h"
 
 extern glm::mat4 view, persProjection;
 extern glm::vec3 ViewDir, LightPos;
@@ -12,10 +13,12 @@ class ObjModel : public Model
 {
 public:
 	//---Variables---
-	std::string ObjPath;
+	std::string ObjPath,assetDir;
 	cy::TriMesh meshData;
 	glm::vec3 Center, DiffuseColor;
 	std::vector<Vertdata> processedData;
+
+	std::vector<unsigned char> imgBuffer, imgTex;	
 
 	GLuint mvLoc, lightDirLoc, viewDirLoc;
 	GLuint diffuseColLoc, lightIntensityLoc, ambientIntensityLoc, shininessLoc;
@@ -24,8 +27,9 @@ public:
 	float Shininess;
 
 	//---Functions---
-	ObjModel(std::string pth, std::string shdr, glm::vec3 diff, float _shininess);
+	ObjModel(std::string pth, std::string shdr, glm::vec3 diff, float _shininess, bool loadMtl);
 	void processMesh();
+	void loadTextures();
 
 	virtual void initMaterial();
 	virtual void updateMaterial();
@@ -33,16 +37,19 @@ public:
 	virtual void updateMVP();
 	virtual void SetBuffers();
 	virtual void Draw() const;
+
 };
 
-ObjModel::ObjModel(std::string pth, std::string shdr, glm::vec3 diff, float _shininess)
+ObjModel::ObjModel(std::string pth, std::string shdr, glm::vec3 diff, float _shininess, bool loadMtl = false)
 {
 	ObjPath = pth;
+	int indx = ObjPath.find_last_of('\\') + 1;
+	assetDir = ObjPath.substr(0, indx);
 	Shader = shdr;
 	Shininess = _shininess;
-	DiffuseColor = diff;
+	DiffuseColor = diff;	
 
-	if (!meshData.LoadFromFileObj(ObjPath.c_str(), false))
+	if (!meshData.LoadFromFileObj(ObjPath.c_str(), loadMtl))
 	{
 		std::cout << "obj loading failed";
 		return;
@@ -51,6 +58,7 @@ ObjModel::ObjModel(std::string pth, std::string shdr, glm::vec3 diff, float _shi
 	compileShaders(Shader + "Vert.glsl", Shader + "Frag.glsl");
 	initMaterial();
 	initMVP();
+	loadTextures();
 	updateMaterial();
 	SetBuffers();
 }
@@ -140,6 +148,18 @@ void ObjModel::updateMVP()
 	//Set values in shader
 	glUniformMatrix4fv(mvpLoc, 1, GL_FALSE, &mvp[0][0]);
 	glUniformMatrix3fv(mvLoc, 1, GL_FALSE, &mvNormal[0][0]);
+}
+
+void ObjModel::loadTextures()
+{
+	if (meshData.NM() == 0) return;
+	if (std::string(meshData.M(0).map_Kd).length() < 1) return;
+	unsigned long w, h;
+	std::cout <<"\nName:" << std::string(meshData.M(0).map_Kd);
+	loadFile(imgBuffer, assetDir + std::string(meshData.M(0).map_Kd));
+	int error = decodePNG(imgTex, w, h, imgBuffer.empty() ? 0 : &imgBuffer[0], (unsigned long)imgBuffer.size());
+	if (error != 0) std::cout << "error: " << error << std::endl;
+	if (imgTex.size() > 4) std::cout << "width: " << w << " height: " << h << " first pixel: " << std::hex << int(imgTex[0]) << int(imgTex[1]) << int(imgTex[2]) << int(imgTex[3]) << std::endl;
 }
 
 void ObjModel::updateMaterial()

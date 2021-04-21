@@ -23,6 +23,5 @@ void main()
 	//Ambient
 	curCol += frag_diffuseCol *frag_ambientIntensity;
 
-	//FragCol = vec4(curCol, 1.0f);
-	FragCol = vec4(frag_uv, 1.0f);
+	FragCol = vec4(curCol, 1.0f);	
 }

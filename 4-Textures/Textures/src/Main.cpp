@@ -69,7 +69,7 @@ int main(int argc, char* argv[])
 	initMVP();
 	
 	initOctahedronBuffer();
-	World.emplace_back(std::make_shared<ObjModel>(argv[1], "Blinn", glm::vec3(0.2f, 0.8f, 0.7f), Shininess));
+	World.emplace_back(std::make_shared<ObjModel>(argv[1], "Blinn", glm::vec3(0.2f, 0.8f, 0.7f), Shininess, true));
 
 	while (!glfwWindowShouldClose(window))
 	{	
