@@ -162,11 +162,13 @@
   <ItemGroup>
     <ClCompile Include="src\glad.c" />
     <ClCompile Include="src\Main.cpp" />
+    <ClCompile Include="src\picopng.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="headers\cutils.h" />
     <ClInclude Include="headers\model.h" />
     <ClInclude Include="headers\ObjModel.h" />
+    <ClInclude Include="headers\picopng.h" />
     <ClInclude Include="headers\ProceduralModel.h" />
   </ItemGroup>
   <ItemGroup>

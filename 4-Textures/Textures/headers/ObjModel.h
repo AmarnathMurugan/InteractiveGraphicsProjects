@@ -20,7 +20,7 @@ public:
 
 	std::vector<unsigned char> imgBuffer, imgTex;	
 
-	GLuint mvLoc, lightDirLoc, viewDirLoc;
+	GLuint mvLoc, lightDirLoc, viewDirLoc, texture;
 	GLuint diffuseColLoc, lightIntensityLoc, ambientIntensityLoc, shininessLoc;
 	glm::mat4 mv;
 	glm::mat3 mvNormal;
@@ -159,7 +159,15 @@ void ObjModel::loadTextures()
 	loadFile(imgBuffer, assetDir + std::string(meshData.M(0).map_Kd));
 	int error = decodePNG(imgTex, w, h, imgBuffer.empty() ? 0 : &imgBuffer[0], (unsigned long)imgBuffer.size());
 	if (error != 0) std::cout << "error: " << error << std::endl;
-	if (imgTex.size() > 4) std::cout << "width: " << w << " height: " << h << " first pixel: " << std::hex << int(imgTex[0]) << int(imgTex[1]) << int(imgTex[2]) << int(imgTex[3]) << std::endl;
+	if (imgTex.size() > 4) std::cout << "width: " << w << " height: " << h << " first pixel: "  << int(imgTex[0])<<"," << int(imgTex[1])<<"," << int(imgTex[2])<<"," << int(imgTex[3]) << std::endl;
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, &imgTex[0]);
+	glGenerateMipmap(GL_TEXTURE_2D);
 }
 
 void ObjModel::updateMaterial()
