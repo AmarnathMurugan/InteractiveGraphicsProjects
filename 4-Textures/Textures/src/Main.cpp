@@ -29,7 +29,7 @@ glm::vec2 CamDistLimit(0.5f, 5.0f);
 
 //Material properties
 glm::vec3 LightPos(0.0f, 1.5f, 0.0f), ViewDir(0,3,-3), DiffuseColor(0.2f, 0.8f, 0.7f);
-float LightIntensity = 1.0f, AmbientIntensity = 0.1f, Shininess = 50.0f;
+float LightIntensity = 0.60f, AmbientIntensity = 0.4f, Shininess = 50.0f;
 
 bool isPerspective=true, isLeftMouseHeld = false, isRightMouseHeld = false, isCtrlHeld = false, isRecompile=false;
 

@@ -2,6 +2,7 @@
 
 uniform vec3 diffuseCol;
 uniform sampler2D mainTex;
+uniform sampler2D specTex;
 uniform float ambientIntensity;
 uniform vec3 lightDir;
 uniform vec3 viewDir;
@@ -15,17 +16,17 @@ vec3 curCol,halfVec;
 out vec4 FragCol;
 
 void main()
+
 {
+
 	//Diffuse
-	//curCol = diffuseCol * lightIntensity * max(0,dot(frag_normal,lightDir));
-	curCol = texture2D(mainTex,frag_uv.xy).xyz *  max(0,dot(frag_normal,lightDir));
+	curCol = diffuseCol * texture2D(mainTex,frag_uv.xy).xyz *  max(0,dot(frag_normal,lightDir));
 	
 	//Specular
 	halfVec = normalize(lightDir + viewDir);	
-	curCol += vec3(1.0f) * lightIntensity * pow(max(0,dot(halfVec,frag_normal)), shininess);
+	curCol += texture2D(specTex,frag_uv.xy).xyz * lightIntensity * pow(max(0,dot(halfVec,frag_normal)), shininess);
 	
 	//Ambient
-	//curCol += diffuseCol * ambientIntensity;
-	curCol += texture2D(mainTex,frag_uv.xy).xyz * ambientIntensity;
-	FragCol = vec4(curCol, 1.0f);	
+	curCol += diffuseCol * texture2D(mainTex,frag_uv.xy).xyz * ambientIntensity;
+	FragCol = vec4(curCol, 1.0f);
 }

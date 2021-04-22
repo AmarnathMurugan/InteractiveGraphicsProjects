@@ -18,10 +18,10 @@ public:
 	glm::vec3 Center, DiffuseColor;
 	std::vector<Vertdata> processedData;
 
-	std::vector<unsigned char> imgBuffer, imgTex;	
+	std::vector<unsigned char> imgBuffer, imgData;	
 
-	GLuint mvLoc, lightDirLoc, viewDirLoc, texture;
-	GLuint diffuseColLoc, diffuseTexLoc, lightIntensityLoc, ambientIntensityLoc, shininessLoc;
+	GLuint mvLoc, lightDirLoc, viewDirLoc, diffTex, specTex;
+	GLuint diffuseColLoc, specTexLoc, diffuseTexLoc, lightIntensityLoc, ambientIntensityLoc, shininessLoc;
 	glm::mat4 mv;
 	glm::mat3 mvNormal;
 	float Shininess;
@@ -126,9 +126,18 @@ void ObjModel::initMaterial()
 	viewDirLoc = glGetUniformLocation(program, "viewDir");
 	diffuseColLoc = glGetUniformLocation(program, "diffuseCol");
 	diffuseTexLoc = glGetUniformLocation(program, "mainTex");
+	specTexLoc = glGetUniformLocation(program, "specTex");
 	lightIntensityLoc = glGetUniformLocation(program, "lightIntensity");
 	ambientIntensityLoc = glGetUniformLocation(program, "ambientIntensity");
 	shininessLoc = glGetUniformLocation(program, "shininess");
+
+	if (meshData.NM() != 0)
+	{
+		for (int i = 0; i < 3; i++)		
+			DiffuseColor[i] = meshData.M(0).Kd[i];	
+		Shininess = meshData.M(0).Ns;		
+	}
+				
 }
 
 void ObjModel::initMVP()
@@ -156,18 +165,37 @@ void ObjModel::loadTextures()
 	if (meshData.NM() == 0) return;
 	if (std::string(meshData.M(0).map_Kd).length() < 1) return;
 	unsigned long w, h;
+
 	std::cout <<"\nName:" << std::string(meshData.M(0).map_Kd);
 	loadFile(imgBuffer, assetDir + std::string(meshData.M(0).map_Kd));
-	int error = decodePNG(imgTex, w, h, imgBuffer.empty() ? 0 : &imgBuffer[0], (unsigned long)imgBuffer.size());
+	int error = decodePNG(imgData, w, h, imgBuffer.empty() ? 0 : &imgBuffer[0], (unsigned long)imgBuffer.size());
 	if (error != 0) std::cout << "error: " << error << std::endl;
-	if (imgTex.size() > 4) std::cout << "width: " << w << " height: " << h << " first pixel: "  << int(imgTex[0])<<"," << int(imgTex[1])<<"," << int(imgTex[2])<<"," << int(imgTex[3]) << std::endl;
-	glGenTextures(1, &texture);
-	glBindTexture(GL_TEXTURE_2D, texture);
+	if (imgData.size() > 4) std::cout << "width: " << w << " height: " << h << " first pixel: "  << int(imgData[0])<<"," << int(imgData[1])<<"," << int(imgData[2])<<"," << int(imgData[3]) << std::endl;
+	
+	glActiveTexture(GL_TEXTURE0);
+	glGenTextures(1, &diffTex);
+	glBindTexture(GL_TEXTURE_2D, diffTex);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, &imgTex[0]);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, &imgData[0]);
+	glGenerateMipmap(GL_TEXTURE_2D);
+
+	std::cout << "\nName:" << std::string(meshData.M(0).map_Ks);
+	loadFile(imgBuffer, assetDir + std::string(meshData.M(0).map_Ks));
+	error = decodePNG(imgData, w, h, imgBuffer.empty() ? 0 : &imgBuffer[0], (unsigned long)imgBuffer.size());
+	if (error != 0) std::cout << "error: " << error << std::endl;
+	if (imgData.size() > 4) std::cout << "width: " << w << " height: " << h << " first pixel: " << int(imgData[0]) << "," << int(imgData[1]) << "," << int(imgData[2]) << "," << int(imgData[3]) << std::endl;
+
+	glActiveTexture(GL_TEXTURE1);
+	glGenTextures(1, &specTex);
+	glBindTexture(GL_TEXTURE_2D, specTex);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, &imgData[0]);
 	glGenerateMipmap(GL_TEXTURE_2D);
 }
 
@@ -176,6 +204,7 @@ void ObjModel::updateMaterial()
 	glUseProgram(program);
 	glUniform3f(diffuseColLoc, DiffuseColor.x, DiffuseColor.y, DiffuseColor.z);
 	glUniform1i(diffuseTexLoc, 0);
+	glUniform1i(specTexLoc, 1);
 	glm::vec3 viewSpaceVec = glm::vec3(view * glm::vec4(ViewDir, 0.0f));
 	glUniform3f(viewDirLoc, viewSpaceVec.x, viewSpaceVec.y, viewSpaceVec.z);;
 	viewSpaceVec = glm::vec3(view * glm::vec4(glm::normalize(LightPos), 0.0f));
