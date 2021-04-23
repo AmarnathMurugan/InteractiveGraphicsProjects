@@ -72,7 +72,7 @@ void ObjModel::processMesh()
 		Center = glm::vec3(center.x, center.y, center.z);
 	}
 
-	processedData.resize((int)(meshData.NV() * 1.1));
+	processedData.resize((int)(meshData.NV() * 3));
 	int size = meshData.NV();
 	for (int i = 0; i < meshData.NF(); i++)
 	{
@@ -90,7 +90,7 @@ void ObjModel::processMesh()
 				processedData[vert].normal = curNormal;
 				processedData[vert].uv = curUV;
 			}
-			else if (processedData[vert].normal != curNormal && processedData[vert].uv != curUV)
+			else if (processedData[vert].normal != curNormal || processedData[vert].uv != curUV)
 			{
 				bool isDealtWith = false;
 				if (size > meshData.NV()) //Check in duplicates
@@ -116,6 +116,7 @@ void ObjModel::processMesh()
 			}
 		}
 	}
+	processedData.shrink_to_fit();
 }
 
 void ObjModel::initMaterial()
