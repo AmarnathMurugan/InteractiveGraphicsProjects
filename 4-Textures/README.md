@@ -1,15 +1,14 @@
 ## Requirements
 
-- Display Triangles ✓
-- Generate and use normal buffers ✓
-- Implement Blinn Shading ✓
+- Obtain the diffuse texture image filename from the mtl file associated with the obj file ✓
+- The diffuse texture should be correctly displayed on the object ✓
 
 Additional Requirements 
 
-- Rotate the light around the object center using two angles ✓
-- When the CTRL key is down, left mouse click and drag should adjust the light rotation around the object ✓
-- Display the light as a separate object ✓
+- Include the specular texture, specified in the mtl file, for adjusting the specular color of the object ✓
+- Provide support for objects with multiple materials, some of which can have textures 
+- Set all material properties using the values in the mtl file 
 
 ## Output
 
-![Prj3 output](https://github.com/AmarnathMurugan/InteractiveGraphicsProjects/blob/main/Pictures/prj3.gif)
+![Prj3 output](https://github.com/AmarnathMurugan/InteractiveGraphicsProjects/blob/main/Pictures/prj4.gif)
