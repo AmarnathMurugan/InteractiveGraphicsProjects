@@ -1,6 +1,7 @@
 #ifndef OBJMODEL_H
 #define OBJMODEL_H
 
+#include<unordered_map>
 #include<cy/cyTriMesh.h>
 #include "model.h"
 #include "picopng.h"
@@ -9,6 +10,27 @@ extern glm::mat4 view, persProjection;
 extern glm::vec3 ViewDir, LightPos;
 extern float LightIntensity, AmbientIntensity;
 
+typedef std::tuple<unsigned int, unsigned int, unsigned int> indexKey;
+
+template <class T>
+inline void hash_combine(std::size_t& seed, const T& v)
+{
+	std::hash<T> hasher;
+	seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+}
+
+struct keyHash : public std::unary_function<indexKey,std::size_t>
+{
+	std::size_t operator ()(const indexKey& k) const
+	{
+		std::size_t h = 0;
+		hash_combine(h, std::get<0>(k));
+		hash_combine(h, std::get<1>(k));
+		hash_combine(h, std::get<2>(k));
+		return h;
+	}
+};
+
 class ObjModel : public Model
 {
 public:
@@ -16,7 +38,10 @@ public:
 	std::string ObjPath,assetDir;
 	cy::TriMesh meshData;
 	glm::vec3 Center, DiffuseColor;
-	std::vector<Vertdata> processedData;
+
+	
+	std::vector<Vertdata> processedMesh;
+	std::vector<unsigned int> processedIndices;
 
 	std::vector<unsigned char> imgBuffer, imgData;	
 
@@ -72,52 +97,36 @@ void ObjModel::processMesh()
 		Center = glm::vec3(center.x, center.y, center.z);
 	}
 
-	processedData.resize((int)(meshData.NV() * 3));
-	int size = meshData.NV();
+	std::unordered_map<indexKey, unsigned int, keyHash> vertMap;
+	unsigned int curIndx, nextIndx = 0;
+	unsigned int vert, norm, uv;
+	indexKey key;
+	Vertdata curVert;
 	for (int i = 0; i < meshData.NF(); i++)
 	{
 		for (int j = 0; j < 3; j++)
 		{
-			int vert = meshData.F(i).v[j];
-			int norm = meshData.FN(i).v[j];
-			int uv = meshData.FT(i).v[j];
-			glm::vec3 curNormal = glm::vec3(meshData.VN(norm).x, meshData.VN(norm).y, meshData.VN(norm).z);
-			glm::vec3 curUV = glm::vec3(meshData.VT(uv).x, meshData.VT(uv).y, meshData.VT(uv).z);
-			//if unassigned
-			if (processedData[vert].position == glm::vec3() && processedData[vert].normal == glm::vec3() && processedData[vert].uv == glm::vec3())
+			vert = meshData.F(i).v[j];
+			norm = meshData.FN(i).v[j];
+			uv = meshData.FT(i).v[j];
+			key = std::make_tuple(vert, norm, uv);
+			curVert.position = glm::vec3(meshData.V(vert).x, meshData.V(vert).y, meshData.V(vert).z);
+			curVert.normal = glm::vec3(meshData.VN(norm).x, meshData.VN(norm).y, meshData.VN(norm).z);
+			curVert.uv = glm::vec3(meshData.VT(uv).x, meshData.VT(uv).y, meshData.VT(uv).z);
+			if (vertMap.find(key) == vertMap.end())
 			{
-				processedData[vert].position = glm::vec3(meshData.V(vert).x, meshData.V(vert).y, meshData.V(vert).z);
-				processedData[vert].normal = curNormal;
-				processedData[vert].uv = curUV;
+				vertMap[key] = nextIndx;
+				processedMesh.emplace_back(curVert);
+				curIndx = nextIndx++;
 			}
-			else if (processedData[vert].normal != curNormal || processedData[vert].uv != curUV)
-			{
-				bool isDealtWith = false;
-				if (size > meshData.NV()) //Check in duplicates
-				{
-					for (int k = meshData.NV() - 1; k < size; k++)
-						if (processedData[vert].normal == processedData[k].normal && processedData[vert].position == processedData[k].position && processedData[vert].uv == processedData[k].uv)
-						{
-							meshData.F(i).v[j] = k;
-							meshData.FT(i).v[j] = k;
-							isDealtWith = true;
-						}
-				}
-
-				if (!isDealtWith) //Create duplicate vertex
-				{
-					processedData[size].position = glm::vec3(meshData.V(vert).x, meshData.V(vert).y, meshData.V(vert).z);
-					processedData[size].normal = curNormal;
-					processedData[size].uv = curUV;
-					meshData.F(i).v[j] = size;
-					meshData.FT(i).v[j] = size;
-					size++;
-				}
-			}
+			else
+				curIndx = vertMap[key];
+			processedIndices.emplace_back(curIndx);
 		}
 	}
-	processedData.shrink_to_fit();
 }
+
+
 
 void ObjModel::initMaterial()
 {
@@ -223,11 +232,13 @@ void ObjModel::SetBuffers()
 
 	glGenBuffers(1, &vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(Vertdata) * processedData.size(), &processedData[0], GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(Vertdata) * processedMesh.size(), &processedMesh[0], GL_STATIC_DRAW);
+	//glBufferData(GL_ARRAY_BUFFER, sizeof(Vertdata) * processedData.size(), &processedData[0], GL_STATIC_DRAW);
 
 	glGenBuffers(1, &ebo);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cy::TriMesh::TriFace) * meshData.NF(), &meshData.F(0), GL_STATIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * processedIndices.size(), &processedIndices[0], GL_STATIC_DRAW);
+	//glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cy::TriMesh::TriFace) * meshData.NF(), &meshData.F(0), GL_STATIC_DRAW);
 
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertdata), (void*)0);
